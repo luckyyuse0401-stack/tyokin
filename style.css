@@ -417,3 +417,36 @@ input, select, textarea { font: inherit; color: inherit; }
 .pad-top .pad-amt { font-size: 32px; }
 .pad-label { margin: 8px 4px 5px; }
 .pk { height: 42px; padding-top: 9px; }
+
+/* ---------- 今後の貯金額 ---------- */
+.tabbar button { width: 80px; }
+.tabbar button .i { width: 56px; }
+.goal { width: 100%; text-align: left; background: var(--navy); color: #fff; border-radius: 24px; padding: 18px; display: flex; gap: 16px; align-items: center; }
+.goal .ring { width: 92px; height: 92px; flex: none; position: relative; }
+.goal .ring svg { width: 92px; height: 92px; }
+.goal .ring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 19px; font-weight: 800; }
+.goal .t { font-size: 13px; opacity: .75; }
+.goal .v { font-size: 24px; font-weight: 800; margin: 2px 0; }
+.goal .s { font-size: 13px; line-height: 1.55; }
+.goal .s b { color: #ffb1b1; }
+.goal .s b.ok { color: var(--mint); }
+.goal.empty { background: #fff; color: var(--ink); border: 2px dashed var(--line); }
+.goal.empty .gi { font-size: 30px; }
+.goal.empty div { flex: 1; }
+.goal.empty small { display: block; color: var(--muted); font-size: 13px; }
+.goal.empty .chev { color: var(--faint); font-size: 22px; }
+.chartcard { background: #fff; border: 1px solid var(--line); border-radius: 24px; padding: 16px; margin-top: 14px; }
+.chartcard .h { display: flex; justify-content: space-between; align-items: baseline; }
+.chartcard .h b { font-size: 16px; }
+.chartcard .h span { font-size: 12px; color: var(--muted); }
+.fchart { display: block; margin-top: 6px; }
+.fchart rect { cursor: pointer; }
+.pick { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: var(--teal-soft); border-radius: 14px; padding: 10px 14px; margin-top: 6px; }
+.pick span { font-size: 13px; color: var(--teal); font-weight: 700; }
+.pick b { font-size: 22px; color: var(--teal); white-space: nowrap; }
+.hintc { background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 14px 16px; margin-top: 14px; }
+.hintc p { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.55; }
+.hintc p small { display: block; font-weight: 500; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.hintc p em { font-style: normal; color: var(--teal); }
+.hintc.wait { background: var(--chip); border-color: var(--chip); }
+select.field { appearance: none; -webkit-appearance: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%237a8599' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 14px center; }

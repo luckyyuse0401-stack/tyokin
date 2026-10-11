@@ -84,6 +84,7 @@ const ICON = {
   cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="15.5" cy="15.5" r="1.6" fill="currentColor" stroke="none"/></svg>',
   eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
   eyeOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-2.7 3.6M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a10 10 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg>',
+  grow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M4 16l5-5 4 3 7-8"/><path d="M15 6h5v5"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>',
 };
 const logo = (cls = '') => `<div class="logo ${cls}">${ICON.wallet}</div>`;
@@ -437,6 +438,247 @@ function viewCalendar() {
 }
 
 /* =========================================================
+   画面：今後の貯金額（予測・目標・ヒント）
+   AIは使わず、記録からルールで計算する
+   ========================================================= */
+let futSel = null;
+const lastDay = ym => `${ym}-${pad(dim(ym))}`;
+const daysBetween = (a, b) => Math.round((parseD(b) - parseD(a)) / 86400000);
+const monthsBetween = (a, b) => { const [y1, m1] = a.split('-').map(Number), [y2, m2] = b.split('-').map(Number); return (y2 - y1) * 12 + (m2 - m1); };
+const HARD_TO_CUT = ['trans', 'health'];
+const isVariable = x => x.kind === 'expense' && !x.rec && !x.plan;
+const startDate = () => D.created || today();
+
+// 毎月の予定の金額（未入力なら過去の平均で見積もる）
+function recAmountFor(r, ym) {
+  const tx = D.tx.find(x => x.rec === r.id && x.ym === ym);
+  if (tx) return tx.amount;
+  if (r.amount) return r.amount;
+  const past = D.tx.filter(x => x.rec === r.id).slice(-3);
+  return past.length ? Math.round(past.reduce((s, x) => s + x.amount, 0) / past.length) : 0;
+}
+
+// ふだんの支出（固定費以外）の1日あたり。直近3か月＋今月から
+function spendWindow(from, to) {
+  const days = daysBetween(from, to) + 1;
+  const list = D.tx.filter(x => isVariable(x) && x.date >= from && x.date <= to);
+  return { days, list, total: list.reduce((s, x) => s + x.amount, 0) };
+}
+function varRate() {
+  const t = today();
+  const from = [startDate(), `${addMonths(ymOf(t), -3)}-01`].sort().pop();
+  const w = spendWindow(from, t);
+  return { ...w, from, daily: w.days > 0 ? w.total / w.days : 0 };
+}
+
+// その月の「これから起きる」予定の合計（今日より後のものだけ）
+function eventsNet(ym) {
+  const t = today();
+  let n = 0;
+  for (const x of D.tx) if (ymOf(x.date) === ym && x.date > t) n += sv(x);
+  for (const v of virtuals(ym)) {
+    if (v.date <= t) continue;
+    const r = D.rec.find(r => r.id === v.rec);
+    const amt = v.amount || (r ? recAmountFor(r, ym) : 0);
+    n += v.kind === 'income' ? amt : -amt;
+  }
+  return n;
+}
+
+// 月末残高の並び（過去は実績、今月は見込み、未来は予測）
+function forecast(monthsAhead = 6, extraMonthly = 0) {
+  const t = today(), cur = ymOf(t), { daily } = varRate();
+  const pts = [];
+  for (let i = -3; i < 0; i++) {
+    const ym = addMonths(cur, i);
+    if (ym >= ymOf(startDate())) pts.push({ ym, v: balance(lastDay(ym)), kind: 'past' });
+  }
+  let bal = balance() + eventsNet(cur) - daily * (dim(cur) - parseD(t).getDate());
+  pts.push({ ym: cur, v: Math.round(bal), kind: 'now' });
+  for (let i = 1; i <= monthsAhead; i++) {
+    const ym = addMonths(cur, i);
+    bal += eventsNet(ym) - daily * dim(ym) + extraMonthly;
+    pts.push({ ym, v: Math.round(bal), kind: 'future' });
+  }
+  return pts;
+}
+
+// 目標額に初めて届く月（10年先まで）
+function reachMonth(amount, extraMonthly = 0) {
+  if (balance() >= amount) return ymOf(today());
+  const hit = forecast(120, extraMonthly).find(p => p.kind !== 'past' && p.v >= amount);
+  return hit ? hit.ym : null;
+}
+
+function goalInfo() {
+  const g = D.goal;
+  if (!g) return null;
+  const cur = ymOf(today());
+  const months = Math.max(0, monthsBetween(cur, g.ym));
+  const pts = forecast(Math.max(months, 1));
+  const at = pts.find(p => p.ym === g.ym) || pts[pts.length - 1];
+  const short = g.amount - at.v;
+  return {
+    ...g, months, projected: at.v, short, expired: g.ym < cur,
+    progress: Math.max(0, Math.min(1, balance() / g.amount)),
+    perMonth: short > 0 ? Math.ceil(short / Math.max(months, 1) / 100) * 100 : 0,
+    reach: reachMonth(g.amount),
+  };
+}
+
+// ヒント：ルールで「削れる金額」を出して、一番大きいものを1つ
+function pickHint() {
+  const t = today(), cur = ymOf(t), vr = varRate();
+  if (vr.days < 14 || vr.list.length < 5) {
+    return { wait: true, text: '📊 データ集め中', sub: `カテゴリを選んで記録していくと、2週間ほどでヒントが出ます（あと${Math.max(1, 14 - vr.days)}日）` };
+  }
+  const k = 30.4 / vr.days;
+  const curFrom = [startDate(), `${cur}-01`].sort().pop();
+  const elapsed = daysBetween(curFrom, t) + 1;
+  const prevTo = addDays(`${cur}-01`, -1);
+  const prev = vr.from <= prevTo ? spendWindow(vr.from, prevTo) : { days: 0, list: [] };
+  const stats = {};
+  for (const x of vr.list) {
+    if (!x.cat || HARD_TO_CUT.includes(x.cat)) continue;
+    const st = (stats[x.cat] ||= { total: 0, count: 0, cur: 0, prev: 0 });
+    st.total += x.amount; st.count++;
+    if (x.date >= curFrom) st.cur += x.amount;
+  }
+  for (const x of prev.list) if (stats[x.cat]) stats[x.cat].prev += x.amount;
+
+  const day = Math.floor(Date.now() / 86400000);
+  const say = arr => arr[day % arr.length];
+  const cands = [];
+  let biggest = null;
+  for (const [id, st] of Object.entries(stats)) {
+    const c = catOf('expense', id);
+    const monthly = st.total * k;
+    if (st.count < 3 || monthly < 3000) continue;
+    const name = `${c.icon}${c.label}`;
+    if (prev.days >= 14 && elapsed >= 7 && st.prev > 0) {
+      const avg = st.prev / prev.days * 30.4, pace = st.cur / elapsed * dim(cur);
+      if (pace - avg >= Math.max(2000, avg * 0.2)) cands.push({ save: pace - avg, text: say([`${name}が最近増えてます。いつもの月に戻すと`, `今月は${name}がハイペース。ふだん通りに戻すと`, `${name}、今月はいつもより多めです。いつもくらいに抑えると`]) });
+    }
+    const perMonth = st.count * k, per = st.total / st.count;
+    if (perMonth >= 8 && per <= 1000) cands.push({ save: per * 4, text: say([`${name}を週1回減らすと`, `${name}は月${Math.round(perMonth)}回くらい。週に1回がまんすると`, `${name}をお休みする日を週に1日つくると`]) });
+    if (!biggest || monthly > biggest.monthly) biggest = { monthly, name };
+  }
+  if (biggest) cands.push({ save: biggest.monthly * 0.1, text: say([`いちばん使っているのは${biggest.name}。1割減らすと`, `${biggest.name}を1割だけ抑えると`, `${biggest.name}を10回に1回やめると`]) });
+  const best = cands.filter(c => c.save >= 1000).sort((a, b) => b.save - a.save)[0];
+  const g = D.goal;
+
+  if (!best) {
+    const r = g && reachMonth(g.amount);
+    return { praise: true, text: '👏 いい感じです', sub: g && r ? `このペースなら目標に ${ymLabel(r)} に届きます` : '大きな使いすぎは見つかりませんでした' };
+  }
+  const save = Math.round(best.save / 100) * 100;
+  let sub = 'ここ3か月の記録から計算しています';
+  if (g) {
+    const before = reachMonth(g.amount), after = reachMonth(g.amount, save);
+    if (before && after && monthsBetween(after, before) > 0) sub = `→ 目標に${monthsBetween(after, before)}か月早く届きます`;
+    else if (!before && after) sub = `→ 目標に ${ymLabel(after)} に届くようになります`;
+    else sub = `→ 1年で ${yen(save * 12)} の差になります`;
+  } else sub = `→ 1年で ${yen(save * 12)} の差になります`;
+  return { text: `${best.text} <em>月 ${yen(save)}</em> 浮きます`, sub };
+}
+
+function futureChart(pts, sel, goal) {
+  const W = 330, H = 150, L = 8, R = 8, T = 16, B = 26;
+  const vals = pts.map(p => p.v);
+  let min = Math.min(...vals), max = Math.max(...vals);
+  const showGoal = goal && goal <= max * 1.6 && goal >= min * 0.5;
+  if (showGoal) { min = Math.min(min, goal); max = Math.max(max, goal); }
+  if (max === min) { max += 1000; min -= 1000; }
+  const span = max - min; min -= span * 0.08; max += span * 0.08;
+  const n = pts.length, step = (W - L - R) / Math.max(1, n - 1);
+  const x = i => L + i * step, y = v => T + (H - T - B) * (1 - (v - min) / (max - min));
+  const nowI = pts.findIndex(p => p.kind === 'now');
+  const line = (a, b) => pts.slice(a, b + 1).map((p, j) => `${x(a + j).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
+  const area = `${line(0, n - 1)} ${x(n - 1).toFixed(1)},${H - B} ${x(0).toFixed(1)},${H - B}`;
+  return `<svg class="fchart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="これからの残高のグラフ">
+    <polygon points="${area}" fill="rgba(23,122,108,.08)"/>
+    ${showGoal ? `<line x1="0" x2="${W}" y1="${y(goal)}" y2="${y(goal)}" stroke="#d64545" stroke-dasharray="4 4" stroke-width="1.4"/><text x="${W - 4}" y="${y(goal) - 5}" font-size="10" fill="#d64545" text-anchor="end">目標</text>` : ''}
+    ${nowI > 0 ? `<polyline points="${line(0, nowI)}" fill="none" stroke="#177a6c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+    <polyline points="${line(nowI, n - 1)}" fill="none" stroke="#177a6c" stroke-width="3" stroke-dasharray="6 5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${pts.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.v)}" r="${p.ym === sel ? 6.5 : 3.5}" fill="${p.ym === sel ? '#177a6c' : p.kind === 'future' ? '#fff' : '#177a6c'}" stroke="#177a6c" stroke-width="2"/>`).join('')}
+    ${pts.map((p, i) => `<text x="${x(i)}" y="${H - 8}" font-size="10.5" text-anchor="middle" fill="${p.ym === sel ? '#1b2b48' : '#7a8599'}" font-weight="${p.ym === sel ? 800 : 500}">${p.kind === 'now' ? '今月' : monthNum(p.ym) + '月'}</text>`).join('')}
+    ${pts.map((p, i) => `<rect data-act="fut-month" data-ym="${p.ym}" x="${x(i) - step / 2}" y="0" width="${step}" height="${H}" fill="transparent"/>`).join('')}
+  </svg>`;
+}
+
+function viewFuture() {
+  const pts = forecast(6);
+  if (!futSel || !pts.some(p => p.ym === futSel)) futSel = pts[pts.length - 1].ym;
+  const sel = pts.find(p => p.ym === futSel);
+  const gi = goalInfo();
+  const hint = pickHint();
+  const vr = varRate();
+  const selLabel = sel.kind === 'past' ? `${ymLabel(sel.ym)}末（実績）` : sel.kind === 'now' ? '今月末の見込み' : `${ymLabel(sel.ym)}末の予測`;
+  const diff = sel.v - balance();
+
+  let goalCard;
+  if (!gi) {
+    goalCard = `<button class="goal empty" data-act="goal"><span class="gi">🎯</span><div><b>目標を決める</b><small>いつまでに・いくら貯めたい？</small></div><span class="chev">›</span></button>`;
+  } else {
+    const pct = Math.round(gi.progress * 100), C = 2 * Math.PI * 42;
+    let status;
+    if (gi.expired) status = `期限を過ぎました。<b class="ok">目標を変えてみよう</b>`;
+    else if (gi.short <= 0) status = `このペースなら<b class="ok">届きます 🎉</b>${gi.reach && gi.reach < gi.ym ? `<br>${ymLabel(gi.reach)}ごろに到達` : ''}`;
+    else status = `今のペースだと <b>${yen(gi.short)} 足りない</b><br>月 ${yen(gi.perMonth)} 減らせば届く`;
+    goalCard = `<button class="goal" data-act="goal">
+      <div class="ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="10"/><circle cx="50" cy="50" r="42" fill="none" stroke="#7fe0c3" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(C * gi.progress).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 50 50)"/></svg><b>${pct}%</b></div>
+      <div class="gtxt"><div class="t">🎯 ${ymLabel(gi.ym)}までに</div><div class="v num">${yen(gi.amount)}</div><div class="s">${status}</div></div>
+    </button>`;
+  }
+
+  return `<div class="page-head" style="margin-top:6px"><h2>今後の貯金額</h2>${gi ? '<button class="pill" data-act="goal">目標を変える</button>' : ''}</div>
+  ${goalCard}
+  <section class="chartcard">
+    <div class="h"><b>これからの残高</b><span>月をタップ</span></div>
+    ${futureChart(pts, futSel, gi?.amount)}
+    <div class="pick"><span>${selLabel}</span><b class="num">${sel.v < 0 ? '−' : ''}${yen(sel.v)}</b></div>
+    <p class="note" style="margin:8px 2px 0">${sel.kind === 'past' ? '実際の記録の月末残高です' : `今より ${sYen(diff)}`}${sel.kind !== 'past' ? ` ・ ふだんの支出は月 ${yen(vr.daily * 30.4)} として計算` : ''}</p>
+  </section>
+  <section class="hintc ${hint.wait ? 'wait' : ''}">
+    <p>${hint.text}<small>${esc(hint.sub)}</small></p>
+  </section>
+  <p class="note">予測は、給料・引き落としなどの毎月の予定と、ここ3か月のふだんの支出（引き落とし・交通・病院などを除く）の平均から計算しています。</p>`;
+}
+
+function openGoal() {
+  const g = D.goal;
+  const now = parseD(today());
+  const defYM = g?.ym || addMonths(ymOf(today()), 12);
+  const [dy, dm] = defYM.split('-').map(Number);
+  const years = Array.from({ length: 11 }, (_, i) => now.getFullYear() + i);
+  openSheet(`<h3>目標</h3><p class="lead">いつまでに、いくら貯めたい？</p>
+    <div class="label">金額</div>
+    <div class="with-unit"><input class="field num" inputmode="numeric" placeholder="例：500000" value="${g?.amount || ''}" data-amt><span>円</span></div>
+    <div class="label">いつまでに</div>
+    <div class="inline-fields">
+      <select class="field" data-y>${years.map(y => `<option value="${y}" ${y === dy ? 'selected' : ''}>${y}年</option>`).join('')}</select>
+      <select class="field" data-m>${Array.from({ length: 12 }, (_, i) => i + 1).map(m => `<option value="${m}" ${m === dm ? 'selected' : ''}>${m}月</option>`).join('')}</select>
+    </div>
+    <div class="stack">
+      <button class="btn btn-primary" data-save>保存</button>
+      ${g ? '<button class="btn btn-text" data-del>目標を消す</button>' : ''}
+    </div>`,
+  s => {
+    if (!g) setTimeout(() => $('[data-amt]', s).focus(), 250);
+    $('[data-save]', s).onclick = () => {
+      const amount = toInt($('[data-amt]', s).value);
+      if (!amount) { shake($('[data-amt]', s)); return; }
+      const ym = `${$('[data-y]', s).value}-${pad($('[data-m]', s).value)}`;
+      if (ym < ymOf(today())) { shake($('[data-m]', s)); return; }
+      D.goal = { amount, ym };
+      futSel = ym <= addMonths(ymOf(today()), 6) ? ym : null;
+      save(); closeSheet(); render(); toast('目標を保存しました');
+    };
+    $('[data-del]', s)?.addEventListener('click', () => { delete D.goal; save(); closeSheet(); render(); });
+  });
+}
+
+/* =========================================================
    画面：設定
    ========================================================= */
 function viewSettings() {
@@ -494,14 +736,14 @@ function render(keepScroll = true) {
   if (processedOn !== today()) processRecurring();
   const y = window.scrollY;
   app.className = '';
-  app.innerHTML = view === 'calendar' ? viewCalendar() : view === 'settings' ? viewSettings() : viewHome();
+  app.innerHTML = view === 'calendar' ? viewCalendar() : view === 'future' ? viewFuture() : view === 'settings' ? viewSettings() : viewHome();
   renderTabbar();
   if (keepScroll) window.scrollTo(0, y);
 }
 
 function renderTabbar() {
   tabbar.hidden = false;
-  const tabs = [['home', 'ホーム', ICON.home], ['calendar', 'カレンダー', ICON.cal], ['settings', '設定', ICON.gear]];
+  const tabs = [['home', 'ホーム', ICON.home], ['calendar', 'カレンダー', ICON.cal], ['future', '貯金', ICON.grow], ['settings', '設定', ICON.gear]];
   tabbar.innerHTML = `<div class="in">${tabs.map(([k, l, i]) => `<button class="${view === k ? 'on' : ''}" data-view="${k}"><span class="i">${i}</span>${l}</button>`).join('')}</div>`;
 }
 
@@ -515,6 +757,7 @@ tabbar.addEventListener('click', e => {
   const b = e.target.closest('button[data-view]');
   if (!b) return;
   if (b.dataset.view === 'calendar' && view !== 'calendar') { calYM = ymOf(today()); selDay = today(); }
+  if (b.dataset.view === 'future' && view !== 'future') futSel = null;
   go(b.dataset.view);
 });
 
@@ -546,6 +789,8 @@ app.addEventListener('click', e => {
       break;
     }
     case 'day': selDay = ds_.date; render(); $('.day-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); break;
+    case 'fut-month': futSel = ds_.ym; render(); break;
+    case 'goal': openGoal(); break;
     case 'adjust': openAdjust(); break;
     case 'rec-add': openRec(); break;
     case 'rec': openRec(ds_.id); break;
