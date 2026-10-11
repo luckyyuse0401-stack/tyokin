@@ -54,26 +54,55 @@ const setProfiles = list => store.set('profiles', list);
 /* ---------- カテゴリ ---------- */
 const CATS = {
   expense: [
-    { id: 'food', label: 'ごはん', icon: '🍙' },
-    { id: 'conv', label: 'コンビニ', icon: '🏪' },
-    { id: 'cafe', label: 'カフェ', icon: '☕' },
-    { id: 'drink', label: '飲み会', icon: '🍻' },
-    { id: 'daily', label: '日用品', icon: '🧴' },
-    { id: 'trans', label: '交通', icon: '🚃' },
-    { id: 'shop', label: '買い物', icon: '🛍️' },
-    { id: 'date', label: 'デート', icon: '💑' },
-    { id: 'beauty', label: '美容', icon: '💄' },
-    { id: 'fun', label: '趣味', icon: '🎮' },
-    { id: 'health', label: '病院・薬', icon: '💊' },
-    { id: 'other', label: 'その他', icon: '📦' },
+    { id: 'food', label: 'ごはん', icon: 'food' },
+    { id: 'conv', label: 'コンビニ', icon: 'conv' },
+    { id: 'cafe', label: 'カフェ', icon: 'cafe' },
+    { id: 'drink', label: '飲み会', icon: 'drink' },
+    { id: 'daily', label: '日用品', icon: 'daily' },
+    { id: 'trans', label: '交通', icon: 'trans' },
+    { id: 'shop', label: '買い物', icon: 'shop' },
+    { id: 'date', label: 'デート', icon: 'date' },
+    { id: 'beauty', label: '美容', icon: 'beauty' },
+    { id: 'fun', label: '趣味', icon: 'fun' },
+    { id: 'health', label: '病院・薬', icon: 'health' },
+    { id: 'other', label: 'その他', icon: 'other' },
   ],
   income: [
-    { id: 'salary', label: '給料', icon: '💰' },
-    { id: 'bonus', label: '臨時収入', icon: '🎁' },
-    { id: 'refund', label: '返金', icon: '↩️' },
-    { id: 'other', label: 'その他', icon: '📦' },
+    { id: 'salary', label: '給料', icon: 'salary' },
+    { id: 'bonus', label: '臨時収入', icon: 'bonus' },
+    { id: 'refund', label: '返金', icon: 'refund' },
+    { id: 'other', label: 'その他', icon: 'other' },
   ],
 };
+/* ---------- アイコン（細い線） ---------- */
+const GLYPH = {
+  food: '<path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M8 7c0-1.5 1-2 1-3.5M12 7c0-1.5 1-2 1-3.5M16 7c0-1.5 1-2 1-3.5"/>',
+  conv: '<path d="M4 9l1.5-5h13L20 9"/><path d="M4 9h16v2a2.7 2.7 0 0 1-5.3 0 2.7 2.7 0 0 1-5.4 0A2.7 2.7 0 0 1 4 11z"/><path d="M5 13v7h14v-7"/><path d="M10 20v-4h4v4"/>',
+  cafe: '<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M9 3.5c0 1.5-1 1.5-1 3M13 3.5c0 1.5-1 1.5-1 3"/>',
+  drink: '<path d="M6 7h10v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M16 10h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2"/><path d="M6 7a2.5 2.5 0 0 1 2.5-3 3 3 0 0 1 5 0A2.5 2.5 0 0 1 16 7"/><path d="M9.5 11v6M12.5 11v6"/>',
+  daily: '<path d="M9 3h6v3H9z"/><path d="M8 6h8l1 3v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V9z"/><path d="M10 13h4"/>',
+  trans: '<rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 10h14"/><circle cx="9" cy="13.5" r=".8"/><circle cx="15" cy="13.5" r=".8"/><path d="M8 21l2-4M16 21l-2-4"/>',
+  shop: '<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  date: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+  beauty: '<path d="M9 21h6v-9H9z"/><path d="M10 12V7l4-3v8"/>',
+  fun: '<rect x="3" y="8" width="18" height="10" rx="5"/><path d="M7.5 11v4M5.5 13h4"/><circle cx="15.5" cy="12" r=".8"/><circle cx="17.5" cy="14" r=".8"/>',
+  health: '<rect x="3.5" y="9" width="17" height="7" rx="3.5" transform="rotate(-35 12 12.5)"/><path d="M9.4 9.2l4.2 6"/>',
+  other: '<path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/>',
+  salary: '<circle cx="12" cy="12" r="8.5"/><path d="M9 8l3 4 3-4M12 12v5M9.5 13h5M9.5 15.5h5"/>',
+  bonus: '<rect x="4" y="9" width="16" height="11" rx="1.5"/><path d="M3 9h18M12 9v11"/><path d="M12 9c-1.5-3-5-3-5-1s3 1 5 1c2 0 5 1 5-1s-3.5-2-5 1"/>',
+  refund: '<path d="M9 7L5 11l4 4"/><path d="M5 11h9a5 5 0 0 1 0 10h-2"/>',
+  bank: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>',
+  adj: '<path d="M4 7h16M4 12h10M4 17h6"/><circle cx="17" cy="15" r="3"/>',
+  pen: '<path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/>',
+  cal: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  coin: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5"/>',
+  book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/>',
+  target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".8"/>',
+  lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  phone: '<rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/>',
+  x: '<path d="M6 6l12 12M18 6L6 18"/>',
+};
+const glyph = (k, sw = 1.5) => `<svg class="gl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${GLYPH[k] || GLYPH.other}</svg>`;
 const catOf = (kind, id) => (CATS[kind] || []).find(c => c.id === id);
 
 
@@ -87,7 +116,7 @@ const ICON = {
   grow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M4 16l5-5 4 3 7-8"/><path d="M15 6h5v5"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>',
 };
-const logo = (cls = '') => `<div class="logo ${cls}">${ICON.wallet}</div>`;
+const logo = (cls = '') => `<div class="logo ${cls}"><i></i></div>`;
 
 /* =========================================================
    状態
@@ -230,11 +259,11 @@ function txTitle(x) {
   return x.name || c?.label || x.memo || (x.kind === 'income' ? '収入' : '支出');
 }
 function txIcon(x) {
-  if (x.kind === 'adjust') return '✏️';
-  if (x.adj) return '🧩';
-  if (x.rec || x.name) return x.kind === 'income' ? '💰' : '🏦';
+  if (x.kind === 'adjust') return glyph('pen');
+  if (x.adj) return glyph('adj');
+  if (x.rec || x.name) return glyph(x.kind === 'income' ? 'salary' : 'bank');
   const c = catOf(x.kind, x.cat);
-  if (c) return c.icon;
+  if (c) return glyph(c.icon);
   return x.kind === 'income' ? '+' : '−';
 }
 function txRow(x, { showDate = true } = {}) {
@@ -266,7 +295,7 @@ function txRow(x, { showDate = true } = {}) {
 function topBar() {
   return `<header class="top">
     ${logo()}
-    <div><h1>のこり</h1><div class="sub">${esc(P.name)}の残高</div></div>
+    <div><h1>ZUBO</h1><div class="sub">${esc(P.name)}の残高</div></div>
     <div class="date">${fmtYMD(today())}</div>
   </header>`;
 }
@@ -279,8 +308,8 @@ function viewHome() {
 
   const installTip = isIOS() && !isStandalone() && !store.get('hideInstallTip', false)
     ? `<div class="tip" style="display:flex;gap:10px;align-items:flex-start">
-        <div style="flex:1">📲 Safariの共有ボタン →「ホーム画面に追加」で、アプリのように使えます。<b>データも消えにくくなる</b>のでおすすめです。<br><small>※ホーム画面のアプリとSafariは別々に保存されます。先に追加してから使い始めてください。</small></div>
-        <button data-act="hide-tip" aria-label="閉じる" style="font-size:18px;color:var(--muted)">✕</button>
+        <div style="flex:1">Safariの共有ボタン →「ホーム画面に追加」で、アプリのように使えます。<b>データも消えにくくなる</b>のでおすすめです。<br><small>※ホーム画面のアプリとSafariは別々に保存されます。先に追加してから使い始めてください。</small></div>
+        <button data-act="hide-tip" aria-label="閉じる" style="color:var(--muted);width:22px;height:22px">${glyph('x')}</button>
       </div>` : '';
 
   return `${installTip}
@@ -293,7 +322,7 @@ function viewHome() {
 
   <div class="two">
     <button class="btn btn-income" data-act="add" data-kind="income">＋ 収入を追加</button>
-    <button class="btn btn-ghost" data-act="add" data-kind="expense">📅 日付を変えて入力</button>
+    <button class="btn btn-ghost" data-act="add" data-kind="expense">日付を変えて入力</button>
   </div>
 
   ${up.length ? `<section class="callout">
@@ -325,18 +354,18 @@ function padHTML() {
         <div class="pad-amt num ${amt ? '' : 'empty'}">${amt ? `¥${amt.toLocaleString('ja-JP')}` : '¥0'}</div>
         <div class="pad-sub">${parts || (padBig ? '1万円以上モード' : '2つの段から1つずつ選んでね')}</div>
       </div>
-      ${amt ? '<button class="pad-clear" data-act="pad-clear" aria-label="クリア">✕</button>' : ''}
+      ${amt ? `<button class="pad-clear" data-act="pad-clear" aria-label="クリア">${glyph('x')}</button>` : ''}
     </div>
     <div class="pad-label">${padBig ? '万円' : '千円'}</div>
     <div class="pad-row">${nums.map(n => `<button class="pk hi ${padHi === n ? 'on' : ''}" data-act="pad-hi" data-n="${n}">${n}<small>${hiUnit}</small></button>`).join('')}
       <button class="pk mode" data-act="pad-big">${padBig ? '〜9,900' : '1万〜'}</button></div>
     <div class="pad-label">${padBig ? '千円' : '百円'}</div>
     <div class="pad-row">${nums.map(n => `<button class="pk lo ${padLo === n ? 'on' : ''}" data-act="pad-lo" data-n="${n}">${padBig ? `${n}<small>千</small>` : `${n}00`}</button>`).join('')}
-      <button class="pk mode" data-act="pad-exact">🪙<small>ぴったり</small></button></div>
+      <button class="pk mode" data-act="pad-exact">ぴったり</button></div>
     <div class="pad-label">なにに使った？ <em>${amt ? 'タップで登録' : ''}</em></div>
-    <div class="pad-cats ${amt ? '' : 'off'}">${CATS.expense.map(c => `<button data-act="pad-cat" data-cat="${c.id}" ${amt ? '' : 'disabled'}><span>${c.icon}</span>${c.label}</button>`).join('')}</div>
+    <div class="pad-cats ${amt ? '' : 'off'}">${CATS.expense.map(c => `<button data-act="pad-cat" data-cat="${c.id}" ${amt ? '' : 'disabled'}>${glyph(c.icon)}${c.label}</button>`).join('')}</div>
     <div class="pad-foot ${amt ? '' : 'off'}">
-      <button data-act="pad-memo" ${amt ? '' : 'disabled'}>✏️ メモを付けて登録</button>
+      <button data-act="pad-memo" ${amt ? '' : 'disabled'}>メモを付けて登録</button>
       <button data-act="pad-plain" ${amt ? '' : 'disabled'}>そのまま登録</button>
     </div>
   </section>`;
@@ -423,7 +452,7 @@ function viewCalendar() {
     <div class="days">${cells}</div>
     <div class="legend"><span><i style="border-color:var(--red)"></i>引き落とし日</span><span><i style="border-color:var(--teal)"></i>給料日など</span><span style="color:var(--red)">予＝予定</span></div>
   </div>
-  ${D.rec.length ? '' : `<div class="tip">💡 設定の「毎月の給料・引き落とし」にカードや家賃を登録すると、カレンダーに<b style="color:var(--red)">赤丸</b>がつきます。<button class="aside" data-act="go" data-view="settings" style="color:var(--teal);font-weight:700;margin-left:4px">登録する</button></div>`}
+  ${D.rec.length ? '' : `<div class="tip">設定の「毎月の給料・引き落とし」にカードや家賃を登録すると、カレンダーに<b style="color:var(--red)">赤丸</b>がつきます。<button class="aside" data-act="go" data-view="settings" style="color:var(--teal);font-weight:700;margin-left:4px">登録する</button></div>`}
 
   <section class="day-panel">
     <div class="h"><b>${fmtMDW(selDay)}${selDay === t ? '（今日）' : ''}</b><span class="num">${items.length ? (future ? '予定 ' : '') + sYen(dayTotal) : ''}</span></div>
@@ -531,7 +560,7 @@ function goalInfo() {
 function pickHint() {
   const t = today(), cur = ymOf(t), vr = varRate();
   if (vr.days < 14 || vr.list.length < 5) {
-    return { wait: true, text: '📊 データ集め中', sub: `カテゴリを選んで記録していくと、2週間ほどでヒントが出ます（あと${Math.max(1, 14 - vr.days)}日）` };
+    return { wait: true, text: 'データ集め中', sub: `カテゴリを選んで記録していくと、2週間ほどでヒントが出ます（あと${Math.max(1, 14 - vr.days)}日）` };
   }
   const k = 30.4 / vr.days;
   const curFrom = [startDate(), `${cur}-01`].sort().pop();
@@ -555,7 +584,7 @@ function pickHint() {
     const c = catOf('expense', id);
     const monthly = st.total * k;
     if (st.count < 3 || monthly < 3000) continue;
-    const name = `${c.icon}${c.label}`;
+    const name = `「${c.label}」`;
     if (prev.days >= 14 && elapsed >= 7 && st.prev > 0) {
       const avg = st.prev / prev.days * 30.4, pace = st.cur / elapsed * dim(cur);
       if (pace - avg >= Math.max(2000, avg * 0.2)) cands.push({ save: pace - avg, text: say([`${name}が最近増えてます。いつもの月に戻すと`, `今月は${name}がハイペース。ふだん通りに戻すと`, `${name}、今月はいつもより多めです。いつもくらいに抑えると`]) });
@@ -570,7 +599,7 @@ function pickHint() {
 
   if (!best) {
     const r = g && reachMonth(g.amount);
-    return { praise: true, text: '👏 いい感じです', sub: g && r ? `このペースなら目標に ${ymLabel(r)} に届きます` : '大きな使いすぎは見つかりませんでした' };
+    return { praise: true, text: 'いい調子です', sub: g && r ? `このペースなら目標に ${ymLabel(r)} に届きます` : '大きな使いすぎは見つかりませんでした' };
   }
   const save = Math.round(best.save / 100) * 100;
   let sub = 'ここ3か月の記録から計算しています';
@@ -597,12 +626,12 @@ function futureChart(pts, sel, goal) {
   const line = (a, b) => pts.slice(a, b + 1).map((p, j) => `${x(a + j).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
   const area = `${line(0, n - 1)} ${x(n - 1).toFixed(1)},${H - B} ${x(0).toFixed(1)},${H - B}`;
   return `<svg class="fchart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="これからの残高のグラフ">
-    <polygon points="${area}" fill="rgba(23,122,108,.08)"/>
-    ${showGoal ? `<line x1="0" x2="${W}" y1="${y(goal)}" y2="${y(goal)}" stroke="#d64545" stroke-dasharray="4 4" stroke-width="1.4"/><text x="${W - 4}" y="${y(goal) - 5}" font-size="10" fill="#d64545" text-anchor="end">目標</text>` : ''}
-    ${nowI > 0 ? `<polyline points="${line(0, nowI)}" fill="none" stroke="#177a6c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
-    <polyline points="${line(nowI, n - 1)}" fill="none" stroke="#177a6c" stroke-width="3" stroke-dasharray="6 5" stroke-linejoin="round" stroke-linecap="round"/>
-    ${pts.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.v)}" r="${p.ym === sel ? 6.5 : 3.5}" fill="${p.ym === sel ? '#177a6c' : p.kind === 'future' ? '#fff' : '#177a6c'}" stroke="#177a6c" stroke-width="2"/>`).join('')}
-    ${pts.map((p, i) => `<text x="${x(i)}" y="${H - 8}" font-size="10.5" text-anchor="middle" fill="${p.ym === sel ? '#1b2b48' : '#7a8599'}" font-weight="${p.ym === sel ? 800 : 500}">${p.kind === 'now' ? '今月' : monthNum(p.ym) + '月'}</text>`).join('')}
+    <polygon points="${area}" fill="rgba(200,174,124,.10)"/>
+    ${showGoal ? `<line x1="0" x2="${W}" y1="${y(goal)}" y2="${y(goal)}" stroke="#D98B7C" stroke-dasharray="4 4" stroke-width="1.4"/><text x="${W - 4}" y="${y(goal) - 5}" font-size="10" fill="#D98B7C" text-anchor="end">目標</text>` : ''}
+    ${nowI > 0 ? `<polyline points="${line(0, nowI)}" fill="none" stroke="#C8AE7C" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+    <polyline points="${line(nowI, n - 1)}" fill="none" stroke="#C8AE7C" stroke-width="1.8" stroke-dasharray="4 4" stroke-linejoin="round" stroke-linecap="round"/>
+    ${pts.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.v)}" r="${p.ym === sel ? 6.5 : 3.5}" fill="${p.ym === sel ? '#C8AE7C' : p.kind === 'future' ? '#0C0D0F' : '#C8AE7C'}" stroke="#C8AE7C" stroke-width="2"/>`).join('')}
+    ${pts.map((p, i) => `<text x="${x(i)}" y="${H - 8}" font-size="10.5" text-anchor="middle" fill="${p.ym === sel ? '#ECE7DE' : '#8A857C'}" font-weight="${p.ym === sel ? 700 : 400}">${p.kind === 'now' ? '今月' : monthNum(p.ym) + '月'}</text>`).join('')}
     ${pts.map((p, i) => `<rect data-act="fut-month" data-ym="${p.ym}" x="${x(i) - step / 2}" y="0" width="${step}" height="${H}" fill="transparent"/>`).join('')}
   </svg>`;
 }
@@ -619,16 +648,16 @@ function viewFuture() {
 
   let goalCard;
   if (!gi) {
-    goalCard = `<button class="goal empty" data-act="goal"><span class="gi">🎯</span><div><b>目標を決める</b><small>いつまでに・いくら貯めたい？</small></div><span class="chev">›</span></button>`;
+    goalCard = `<button class="goal empty" data-act="goal"><span class="gi">${glyph('target', 1.3)}</span><div><b>目標を決める</b><small>いつまでに・いくら貯めたい？</small></div><span class="chev">›</span></button>`;
   } else {
     const pct = Math.round(gi.progress * 100), C = 2 * Math.PI * 42;
     let status;
     if (gi.expired) status = `期限を過ぎました。<b class="ok">目標を変えてみよう</b>`;
-    else if (gi.short <= 0) status = `このペースなら<b class="ok">届きます 🎉</b>${gi.reach && gi.reach < gi.ym ? `<br>${ymLabel(gi.reach)}ごろに到達` : ''}`;
+    else if (gi.short <= 0) status = `このペースなら<b class="ok">届きます</b>${gi.reach && gi.reach < gi.ym ? `<br>${ymLabel(gi.reach)}ごろに到達` : ''}`;
     else status = `今のペースだと <b>${yen(gi.short)} 足りない</b><br>月 ${yen(gi.perMonth)} 減らせば届く`;
     goalCard = `<button class="goal" data-act="goal">
-      <div class="ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="10"/><circle cx="50" cy="50" r="42" fill="none" stroke="#7fe0c3" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(C * gi.progress).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 50 50)"/></svg><b>${pct}%</b></div>
-      <div class="gtxt"><div class="t">🎯 ${ymLabel(gi.ym)}までに</div><div class="v num">${yen(gi.amount)}</div><div class="s">${status}</div></div>
+      <div class="ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="4"/><circle cx="50" cy="50" r="42" fill="none" stroke="#C8AE7C" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(C * gi.progress).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 50 50)"/></svg><b>${pct}%</b></div>
+      <div class="gtxt"><div class="t">${ymLabel(gi.ym)}までに</div><div class="v num">${yen(gi.amount)}</div><div class="s">${status}</div></div>
     </button>`;
   }
 
@@ -692,14 +721,14 @@ function viewSettings() {
   </section>
 
   <div class="menu" style="margin-top:14px">
-    <button data-act="adjust"><div class="l"><b>🧩 残高を合わせる</b><small>入れ忘れでズレたら、本当の残高を入れるだけ</small></div><span class="chev">›</span></button>
-    <button data-act="guide"><div class="l"><b>📖 使い方ガイド</b><small>入れ方・カード・予測の見方など</small></div><span class="chev">›</span></button>
+    <button data-act="adjust"><div class="l"><b>残高を合わせる</b><small>入れ忘れでズレたら、本当の残高を入れるだけ</small></div><span class="chev">›</span></button>
+    <button data-act="guide"><div class="l"><b>使い方ガイド</b><small>入れ方・カード・予測の見方など</small></div><span class="chev">›</span></button>
   </div>
 
   <div class="sec-head"><h3>毎月の給料・引き落とし</h3></div>
   <div class="menu">
     ${recs.map(r => `<button data-act="rec" data-id="${r.id}">
-      <div class="ico ${r.kind === 'income' ? 'inc' : 'plan'}" style="width:38px;height:38px;font-size:18px">${r.kind === 'income' ? '💰' : '🏦'}</div>
+      <div class="ico ${r.kind === 'income' ? 'inc' : 'plan'}" style="width:38px;height:38px">${glyph(r.kind === 'income' ? 'salary' : 'bank')}</div>
       <div class="l"><b>${esc(r.name)}</b><small>毎月${r.day}日${r.day >= 29 ? '（ない月は月末）' : ''}</small></div>
       <div class="r num">${r.amount ? (r.kind === 'income' ? '+' : '−') + yen(r.amount) : '毎月入力'}</div><span class="chev">›</span>
     </button>`).join('')}
@@ -723,14 +752,14 @@ function viewSettings() {
   </div>
 
   <div class="storage-note">
-    <div style="font-size:24px">📱</div>
+    <div class="sn-ic">${glyph('phone', 1.3)}</div>
     <div><b>このスマホだけに保存</b><p>ログイン不要で、データはこの端末の中だけにあります。ブラウザのデータ削除や機種変更では消えてしまうので、機種変更の前に「引き継ぎリンク」を作ってください。${isIOS() ? 'ホーム画面に追加したアプリとSafariは別々に保存されます。' : ''}</p></div>
   </div>
 
   <div class="menu" style="margin-top:26px">
     <button class="danger" data-act="delete-account"><div class="l">このアカウントのデータを削除</div></button>
   </div>
-  <p class="note" style="text-align:center;margin-top:20px">のこり v1</p>`;
+  <p class="note" style="text-align:center;margin-top:20px">ZUBO v1</p>`;
 }
 
 /* =========================================================
@@ -882,7 +911,7 @@ function openEntry(o) {
     <div class="amount-field"><span>¥</span><input class="num" inputmode="numeric" pattern="[0-9]*" placeholder="0" value="${amount}" data-amount aria-label="金額"></div>
     ${isRec ? '' : `
       <div class="label">${kind === 'income' ? 'どんな収入？' : 'なにに使った？'}${quick ? '<em>タップでそのまま登録</em>' : ''}</div>
-      <div class="cats">${cats.map(c => `<button class="cat ${c.id === cat ? 'on' : ''}" data-cat="${c.id}"><span>${c.icon}</span>${c.label}</button>`).join('')}</div>`}
+      <div class="cats">${cats.map(c => `<button class="cat ${c.id === cat ? 'on' : ''}" data-cat="${c.id}">${glyph(c.icon)}${c.label}</button>`).join('')}</div>`}
     <div class="label">メモ（なくてもOK）</div>
     <input class="field" maxlength="40" placeholder="${kind === 'income' ? '例：お祝い、メルカリ' : '例：ランチ、Amazon'}" value="${esc(memo)}" data-memo enterkeyhint="done">
     ${suggestions.length && !isRec ? `<div class="suggest">${suggestions.map(m => `<button data-sug="${esc(m)}">${esc(m)}</button>`).join('')}</div>` : ''}
@@ -995,9 +1024,9 @@ function openAdjust() {
       diffEl.hidden = !has;
       if (!has) return;
       diffEl.className = `adj-diff ${d < 0 ? 'out' : d > 0 ? 'in' : 'ok'}`;
-      diffEl.innerHTML = !d ? '👍 ぴったり合っています'
-        : d < 0 ? `🧩 <b>${yen(d)}</b> 入れ忘れた支出があるみたい<small>「入れ忘れ」として今日の支出に記録します</small>`
-        : `🧩 <b>${yen(d)}</b> 多いみたい<small>「入れ忘れ」として今日の収入に記録します</small>`;
+      diffEl.innerHTML = !d ? 'ぴったり合っています'
+        : d < 0 ? `<b>${yen(d)}</b> 入れ忘れた支出があるみたい<small>「入れ忘れ」として今日の支出に記録します</small>`
+        : `<b>${yen(d)}</b> 多いみたい<small>「入れ忘れ」として今日の収入に記録します</small>`;
       btn.textContent = d ? 'この残高に合わせる' : '閉じる';
     };
     inp.addEventListener('input', upd);
@@ -1006,7 +1035,7 @@ function openAdjust() {
       if (!/\d/.test(inp.value)) { shake(inp.parentElement); inp.focus(); return; }
       const diff = toSignedInt(inp.value) - bal;
       closeSheet();
-      if (!diff) { toast('ぴったりでした 👍'); return; }
+      if (!diff) { toast('ぴったりでした'); return; }
       // 差額は「入れ忘れ」として記録（集計・予測にも入る）
       const tx = { id: uid(), date: today(), kind: diff < 0 ? 'expense' : 'income', amount: Math.abs(diff), name: '入れ忘れ（残高合わせ）', adj: true };
       D.tx.push(tx); save(); render();
@@ -1017,28 +1046,28 @@ function openAdjust() {
 
 /* ---------- 使い方ガイド ---------- */
 const GUIDE = [
-  ['👋', 'のこりってどんなアプリ？', `<p>「いま使えるお金」がひと目でわかる、ズボラ向けの残高管理アプリです。細かい家計簿はつけなくてOK。<b>使ったらタップ</b>、それだけです。</p>`],
-  ['👆', '支出の入れ方（いちばん大事）', `<p>ホームの「いくら使った？」で、<b>千円の段と百円の段から1つずつ</b>タップします。</p>
+  ['', 'ZUBOってどんなアプリ？', `<p>「いま使えるお金」がひと目でわかる、ズボラ向けの残高管理アプリです。細かい家計簿はつけなくてOK。<b>使ったらタップ</b>、それだけです。</p>`],
+  ['', '支出の入れ方（いちばん大事）', `<p>ホームの「いくら使った？」で、<b>千円の段と百円の段から1つずつ</b>タップします。</p>
     <ul><li>2,500円 → <b>2千</b> → <b>500</b></li><li>600円 → <b>600</b> だけ</li><li>3千円ちょうど → <b>3千</b> だけ</li></ul>
-    <p>最後に「なにに使った？」の 🍙🏪☕ などをタップすると登録完了。選ぶのが面倒なら「そのまま登録」でOK。</p>
-    <p>押しまちがえたら、もう一度押すと選択が外れます（✕で全部消せます）。登録したあとでも、下に出る「取り消す」で戻せます。</p>`],
-  ['🪙', '1万円以上・端数まで入れたいとき', `<ul><li><b>1万〜</b> を押すと「万円」と「千円」の段に切り替わります（25,000円 → 2万 → 5千）</li><li>1,280円のように端数まで入れたいときは <b>🪙ぴったり</b> から数字を打てます</li><li>だいたいでOK。数十円のズレは「残高を合わせる」でまとめて直せます</li></ul>`],
-  ['📅', '昨日の分・過去の分を入れる', `<p>ホームの「📅 日付を変えて入力」か、カレンダーで日付をタップして「＋支出」から入れられます。</p>`],
-  ['💳', 'クレジットカードの使い方', `<p>カードで買ったものは<b>その都度入れなくてOK</b>です。お金が減るのは引き落とし日なので、その日の金額だけ入れます。</p>
+    <p>最後に「なにに使った？」の「ごはん」「コンビニ」などをタップすると登録完了。選ぶのが面倒なら「そのまま登録」でOK。</p>
+    <p>押しまちがえたら、もう一度押すと選択が外れます（右上の×で全部消せます）。登録したあとでも、下に出る「取り消す」で戻せます。</p>`],
+  ['', '1万円以上・端数まで入れたいとき', `<ul><li><b>1万〜</b> を押すと「万円」と「千円」の段に切り替わります（25,000円 → 2万 → 5千）</li><li>1,280円のように端数まで入れたいときは <b>ぴったり</b> から数字を打てます</li><li>だいたいでOK。数十円のズレは「残高を合わせる」でまとめて直せます</li></ul>`],
+  ['', '昨日の分・過去の分を入れる', `<p>ホームの「日付を変えて入力」か、カレンダーで日付をタップして「＋支出」から入れられます。</p>`],
+  ['', 'クレジットカードの使い方', `<p>カードで買ったものは<b>その都度入れなくてOK</b>です。お金が減るのは引き落とし日なので、その日の金額だけ入れます。</p>
     <ol><li>設定 →「毎月の給料・引き落とし」でカードを追加（例：楽天カード・27日・金額は空欄）</li><li>カレンダーの<b style="color:var(--red)">赤丸</b>の日をタップして、明細の金額を入れる</li><li>その日になると自動で残高から引かれます</li></ol>
     <p>現金や電子マネーで使った分だけ、ふだんのボタンで入れてください。カードで買った物まで入れると二重に減ってしまいます。</p>`],
-  ['💰', '給料・家賃など毎月のもの', `<p>設定 →「毎月の給料・引き落とし」に登録すると、毎月その日に自動で反映されます。金額が毎月同じなら金額も入れておきましょう。</p>`],
-  ['🧩', '残高がズレたら', `<p>入れ忘れは誰でもあります。設定 →「<b>残高を合わせる</b>」で、銀行アプリやお財布の本当の残高を入れれば、差額を「入れ忘れ」として記録してピタッと合わせます。<b>気づいたときにいつでも</b>どうぞ。</p>`],
-  ['📈', '今後の貯金額の見方', `<ul><li><b>目標</b>：いつまでに・いくら、を決めると達成率と「月いくら減らせば届くか」が出ます</li><li><b>グラフ</b>：過去3か月は実際の残高、その先6か月は予測。月をタップすると金額が出ます</li><li><b>ヒント</b>：記録からいちばん効きそうな節約を1つだけ出します。カテゴリを選んで登録するほど正確になります</li></ul>
+  ['', '給料・家賃など毎月のもの', `<p>設定 →「毎月の給料・引き落とし」に登録すると、毎月その日に自動で反映されます。金額が毎月同じなら金額も入れておきましょう。</p>`],
+  ['', '残高がズレたら', `<p>入れ忘れは誰でもあります。設定 →「<b>残高を合わせる</b>」で、銀行アプリやお財布の本当の残高を入れれば、差額を「入れ忘れ」として記録してピタッと合わせます。<b>気づいたときにいつでも</b>どうぞ。</p>`],
+  ['', '今後の貯金額の見方', `<ul><li><b>目標</b>：いつまでに・いくら、を決めると達成率と「月いくら減らせば届くか」が出ます</li><li><b>グラフ</b>：過去3か月は実際の残高、その先6か月は予測。月をタップすると金額が出ます</li><li><b>ヒント</b>：記録からいちばん効きそうな節約を1つだけ出します。カテゴリを選んで登録するほど正確になります</li></ul>
     <p>予測は「毎月の予定」と「ここ3か月のふだんの支出の平均」から計算しています。使い始めは数字がブレやすいです。</p>`],
-  ['🙈', '残高を隠す', `<p>残高は開くたびに隠れた状態になります。「表示」を押すと見えます。アプリを閉じるとまた隠れます。</p>`],
-  ['🔒', 'パスコード', `<p>設定 →「パスコード」でオン・オフ・変更ができます。忘れると元に戻せないので注意してください。</p>`],
-  ['📱', '機種変更・バックアップ', `<p>データは<b>このスマホの中だけ</b>に保存されています。</p><ul><li>機種変更の前に、設定 →「引き継ぎリンクを作る」→ 新しいスマホでリンクを開く</li><li>ときどき「バックアップをファイルに保存」しておくと安心</li><li>ホーム画面のアイコンを消すとデータも消えるので注意</li></ul>`],
+  ['', '残高を隠す', `<p>残高は開くたびに隠れた状態になります。「表示」を押すと見えます。アプリを閉じるとまた隠れます。</p>`],
+  ['', 'パスコード', `<p>設定 →「パスコード」でオン・オフ・変更ができます。忘れると元に戻せないので注意してください。</p>`],
+  ['', '機種変更・バックアップ', `<p>データは<b>このスマホの中だけ</b>に保存されています。</p><ul><li>機種変更の前に、設定 →「引き継ぎリンクを作る」→ 新しいスマホでリンクを開く</li><li>ときどき「バックアップをファイルに保存」しておくと安心</li><li>ホーム画面のアイコンを消すとデータも消えるので注意</li></ul>`],
 ];
 
 function openGuide() {
-  openSheet(`<h3>📖 使い方ガイド</h3><p class="lead">知りたいところをタップしてください</p>
-    <div class="guide">${GUIDE.map(([ic, t, body], i) => `<details ${i === 1 ? 'open' : ''}><summary><span>${ic}</span>${t}</summary><div class="gbody">${body}</div></details>`).join('')}</div>
+  openSheet(`<h3>使い方ガイド</h3><p class="lead">知りたいところをタップしてください</p>
+    <div class="guide">${GUIDE.map(([ic, t, body], i) => `<details ${i === 1 ? 'open' : ''}><summary><span class="gno num">${String(i + 1).padStart(2, '0')}</span>${t}</summary><div class="gbody">${body}</div></details>`).join('')}</div>
     <div class="stack"><button class="btn btn-white" data-close>閉じる</button></div>`,
   s => { $('[data-close]', s).onclick = closeSheet; });
 }
@@ -1219,7 +1248,7 @@ function openProfile(p) {
 function showWelcome() {
   const hasOthers = getProfiles().length > 0;
   fullScreen(`<div class="screen">
-    <div class="hero">${logo()}<h1>のこり</h1><p>ズボラでも続く、シンプル残高管理</p></div>
+    <div class="hero">${logo()}<h1 class="wordmark">ZUB<i></i></h1><p>ズボラのための、お金の手帳</p></div>
     <div class="card">
       <div class="label" style="margin-top:0">あなたの名前</div>
       <input class="field" maxlength="12" placeholder="例：まい" data-name>
@@ -1258,9 +1287,9 @@ function showPicker() {
   const list = getProfiles();
   if (!list.length) return showWelcome();
   fullScreen(`<div class="screen">
-    <div class="hero">${logo()}<h1>のこり</h1><p>だれが使いますか？</p></div>
+    <div class="hero">${logo()}<h1 class="wordmark">ZUB<i></i></h1><p>だれが使いますか？</p></div>
     <div class="profiles">
-      ${list.map(p => `<button class="profile-btn" data-id="${p.id}"><span class="avatar">${esc([...p.name][0] || '?')}</span>${esc(p.name)}<span class="lock">${p.pin ? '🔒' : ''}</span></button>`).join('')}
+      ${list.map(p => `<button class="profile-btn" data-id="${p.id}"><span class="avatar">${esc([...p.name][0] || '?')}</span>${esc(p.name)}<span class="lock">${p.pin ? glyph('lock', 1.4) : ''}</span></button>`).join('')}
     </div>
     <div style="text-align:center;margin-top:18px"><button class="btn-text" data-new>＋ 新しいアカウントを作る</button></div>
   </div>`);
@@ -1397,7 +1426,7 @@ function openTransfer() {
       </div>
       <p class="note">新しいスマホでは、先に「ホーム画面に追加」してからそのアプリでリンクを開くのが確実です。うまくいかないときは「バックアップをファイルに保存」も使えます。</p>`,
     s => {
-      $('[data-share]', s)?.addEventListener('click', () => navigator.share({ title: 'のこり 引き継ぎリンク', url }).catch(() => {}));
+      $('[data-share]', s)?.addEventListener('click', () => navigator.share({ title: 'ZUBO 引き継ぎリンク', url }).catch(() => {}));
       $('[data-copy]', s).onclick = async () => {
         try { await navigator.clipboard.writeText(url); toast('コピーしました'); }
         catch { prompt('このリンクをコピーしてください', url); }
@@ -1411,7 +1440,7 @@ function openTransfer() {
 
 async function exportFile() {
   const obj = exportObject();
-  const name = `nokori-${P.name}-${today()}.json`;
+  const name = `zubo-${P.name}-${today()}.json`;
   const blob = new Blob([JSON.stringify(obj)], { type: 'application/json' });
   const file = new File([blob], name, { type: 'application/json' });
   if (navigator.canShare?.({ files: [file] })) {
@@ -1434,7 +1463,7 @@ function pickImportFile() {
       const obj = JSON.parse(await f.text());
       if (!validImport(obj)) throw new Error('invalid');
       confirmImport(obj);
-    } catch { toast('のこりのバックアップファイルではないようです'); }
+    } catch { toast('ZUBOのバックアップファイルではないようです'); }
   };
   inp.click();
 }

@@ -1,5 +1,5 @@
 // オフラインでも開けるように、アプリ本体をキャッシュする（まずネット、だめならキャッシュ）
-const CACHE = 'nokori-v7';
+const CACHE = 'zubo-v8';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
