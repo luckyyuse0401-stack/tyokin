@@ -748,7 +748,7 @@ function render(keepScroll = true) {
 
 function renderTabbar() {
   tabbar.hidden = false;
-  const tabs = [['home', 'ホーム', ICON.home], ['calendar', 'カレンダー', ICON.cal], ['future', '貯金', ICON.grow], ['settings', '設定', ICON.gear]];
+  const tabs = [['home', 'ホーム', ICON.home], ['calendar', 'カレンダー', ICON.cal], ['future', '貯金目標', ICON.grow], ['settings', '設定', ICON.gear]];
   tabbar.innerHTML = `<div class="in">${tabs.map(([k, l, i]) => `<button class="${view === k ? 'on' : ''}" data-view="${k}"><span class="i">${i}</span>${l}</button>`).join('')}</div>`;
 }
 
