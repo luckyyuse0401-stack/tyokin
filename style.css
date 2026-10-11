@@ -450,3 +450,22 @@ input, select, textarea { font: inherit; color: inherit; }
 .hintc p em { font-style: normal; color: var(--teal); }
 .hintc.wait { background: var(--chip); border-color: var(--chip); }
 select.field { appearance: none; -webkit-appearance: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%237a8599' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 14px center; }
+
+/* ---------- 残高合わせ・ガイド ---------- */
+.adj-now { display: flex; justify-content: space-between; align-items: baseline; background: var(--bg); border-radius: 14px; padding: 12px 14px; }
+.adj-now span { font-size: 13px; color: var(--muted); }
+.adj-now b { font-size: 20px; }
+.adj-diff { border-radius: 14px; padding: 12px 14px; margin-top: 12px; font-size: 15px; font-weight: 700; }
+.adj-diff small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+.adj-diff.out { background: var(--red-soft); color: var(--red); }
+.adj-diff.in, .adj-diff.ok { background: var(--teal-soft); color: var(--teal); }
+.guide { display: grid; gap: 8px; }
+.guide details { background: var(--bg); border-radius: 14px; padding: 0 14px; }
+.guide summary { list-style: none; cursor: pointer; padding: 14px 0; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+.guide summary::-webkit-details-marker { display: none; }
+.guide summary::after { content: "›"; margin-left: auto; color: var(--faint); font-size: 20px; transition: transform .15s; }
+.guide details[open] summary::after { transform: rotate(90deg); }
+.guide summary span { font-size: 20px; }
+.gbody { font-size: 14px; line-height: 1.7; padding-bottom: 12px; }
+.gbody p { margin: 0 0 8px; }
+.gbody ul, .gbody ol { margin: 0 0 8px; padding-left: 20px; }

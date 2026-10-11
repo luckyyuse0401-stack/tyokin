@@ -231,6 +231,7 @@ function txTitle(x) {
 }
 function txIcon(x) {
   if (x.kind === 'adjust') return '✏️';
+  if (x.adj) return '🧩';
   if (x.rec || x.name) return x.kind === 'income' ? '💰' : '🏦';
   const c = catOf(x.kind, x.cat);
   if (c) return c.icon;
@@ -688,8 +689,12 @@ function viewSettings() {
   <section class="set-balance">
     <div class="k" style="display:flex;justify-content:space-between;align-items:center">現在残高 ${eyeBtn()}</div>
     <div class="v num">${balText(bal)}</div>
-    <button data-act="adjust">残高を直接修正</button>
   </section>
+
+  <div class="menu" style="margin-top:14px">
+    <button data-act="adjust"><div class="l"><b>🧩 残高を合わせる</b><small>入れ忘れでズレたら、本当の残高を入れるだけ</small></div><span class="chev">›</span></button>
+    <button data-act="guide"><div class="l"><b>📖 使い方ガイド</b><small>入れ方・カード・予測の見方など</small></div><span class="chev">›</span></button>
+  </div>
 
   <div class="sec-head"><h3>毎月の給料・引き落とし</h3></div>
   <div class="menu">
@@ -792,6 +797,7 @@ app.addEventListener('click', e => {
     case 'fut-month': futSel = ds_.ym; render(); break;
     case 'goal': openGoal(); break;
     case 'adjust': openAdjust(); break;
+    case 'guide': openGuide(); break;
     case 'rec-add': openRec(); break;
     case 'rec': openRec(ds_.id); break;
     case 'rename': openRename(); break;
@@ -975,26 +981,66 @@ function openAdjustDelete(tx) {
 /* ---------- 残高の直接修正 ---------- */
 function openAdjust() {
   const bal = balance();
-  openSheet(`<h3>残高を直接修正</h3>
-    <p class="lead">通帳やアプリの残高と合わせたいときに。差額が「残高の修正」として記録されます。</p>
-    <div class="amount-field"><span>¥</span><input class="num" inputmode="numeric" value="${bal}" data-v aria-label="正しい残高"></div>
-    <p class="note" data-diff>&nbsp;</p>
-    <div class="stack"><button class="btn btn-navy" data-save>この残高にする</button></div>`,
+  openSheet(`<h3>残高を合わせる</h3>
+    <p class="lead">銀行アプリやお財布を見て、<b>本当の残高</b>を入れてください。入れ忘れがあっても、ここで合わせればOKです。</p>
+    <div class="adj-now"><span>アプリの残高</span><b class="num">${bal < 0 ? '−' : ''}${yen(bal)}</b></div>
+    <div class="label">本当の残高</div>
+    <div class="amount-field" style="margin-top:0"><span>¥</span><input class="num" inputmode="numeric" placeholder="${Math.max(0, bal)}" data-v aria-label="本当の残高"></div>
+    <div class="adj-diff" data-diff hidden></div>
+    <div class="stack"><button class="btn btn-primary" data-save>この残高に合わせる</button></div>`,
   s => {
-    const inp = $('[data-v]', s), diffEl = $('[data-diff]', s);
-    const upd = () => { const d = toSignedInt(inp.value) - bal; diffEl.textContent = d ? `今より ${sYen(d)}` : ' '; };
+    const inp = $('[data-v]', s), diffEl = $('[data-diff]', s), btn = $('[data-save]', s);
+    const upd = () => {
+      const has = /\d/.test(inp.value), d = toSignedInt(inp.value) - bal;
+      diffEl.hidden = !has;
+      if (!has) return;
+      diffEl.className = `adj-diff ${d < 0 ? 'out' : d > 0 ? 'in' : 'ok'}`;
+      diffEl.innerHTML = !d ? '👍 ぴったり合っています'
+        : d < 0 ? `🧩 <b>${yen(d)}</b> 入れ忘れた支出があるみたい<small>「入れ忘れ」として今日の支出に記録します</small>`
+        : `🧩 <b>${yen(d)}</b> 多いみたい<small>「入れ忘れ」として今日の収入に記録します</small>`;
+      btn.textContent = d ? 'この残高に合わせる' : '閉じる';
+    };
     inp.addEventListener('input', upd);
-    setTimeout(() => inp.select(), 250);
-    $('[data-save]', s).onclick = () => {
-      if (!/\d/.test(inp.value)) { shake(inp.parentElement); return; }
+    setTimeout(() => inp.focus(), 250);
+    btn.onclick = () => {
+      if (!/\d/.test(inp.value)) { shake(inp.parentElement); inp.focus(); return; }
       const diff = toSignedInt(inp.value) - bal;
       closeSheet();
-      if (!diff) return;
-      const tx = { id: uid(), date: today(), kind: 'adjust', amount: diff };
+      if (!diff) { toast('ぴったりでした 👍'); return; }
+      // 差額は「入れ忘れ」として記録（集計・予測にも入る）
+      const tx = { id: uid(), date: today(), kind: diff < 0 ? 'expense' : 'income', amount: Math.abs(diff), name: '入れ忘れ（残高合わせ）', adj: true };
       D.tx.push(tx); save(); render();
-      toast('残高を修正しました', () => { D.tx = D.tx.filter(x => x !== tx); save(); render(); });
+      toast('残高を合わせました', () => { D.tx = D.tx.filter(x => x !== tx); save(); render(); });
     };
   });
+}
+
+/* ---------- 使い方ガイド ---------- */
+const GUIDE = [
+  ['👋', 'のこりってどんなアプリ？', `<p>「いま使えるお金」がひと目でわかる、ズボラ向けの残高管理アプリです。細かい家計簿はつけなくてOK。<b>使ったらタップ</b>、それだけです。</p>`],
+  ['👆', '支出の入れ方（いちばん大事）', `<p>ホームの「いくら使った？」で、<b>千円の段と百円の段から1つずつ</b>タップします。</p>
+    <ul><li>2,500円 → <b>2千</b> → <b>500</b></li><li>600円 → <b>600</b> だけ</li><li>3千円ちょうど → <b>3千</b> だけ</li></ul>
+    <p>最後に「なにに使った？」の 🍙🏪☕ などをタップすると登録完了。選ぶのが面倒なら「そのまま登録」でOK。</p>
+    <p>押しまちがえたら、もう一度押すと選択が外れます（✕で全部消せます）。登録したあとでも、下に出る「取り消す」で戻せます。</p>`],
+  ['🪙', '1万円以上・端数まで入れたいとき', `<ul><li><b>1万〜</b> を押すと「万円」と「千円」の段に切り替わります（25,000円 → 2万 → 5千）</li><li>1,280円のように端数まで入れたいときは <b>🪙ぴったり</b> から数字を打てます</li><li>だいたいでOK。数十円のズレは「残高を合わせる」でまとめて直せます</li></ul>`],
+  ['📅', '昨日の分・過去の分を入れる', `<p>ホームの「📅 日付を変えて入力」か、カレンダーで日付をタップして「＋支出」から入れられます。</p>`],
+  ['💳', 'クレジットカードの使い方', `<p>カードで買ったものは<b>その都度入れなくてOK</b>です。お金が減るのは引き落とし日なので、その日の金額だけ入れます。</p>
+    <ol><li>設定 →「毎月の給料・引き落とし」でカードを追加（例：楽天カード・27日・金額は空欄）</li><li>カレンダーの<b style="color:var(--red)">赤丸</b>の日をタップして、明細の金額を入れる</li><li>その日になると自動で残高から引かれます</li></ol>
+    <p>現金や電子マネーで使った分だけ、ふだんのボタンで入れてください。カードで買った物まで入れると二重に減ってしまいます。</p>`],
+  ['💰', '給料・家賃など毎月のもの', `<p>設定 →「毎月の給料・引き落とし」に登録すると、毎月その日に自動で反映されます。金額が毎月同じなら金額も入れておきましょう。</p>`],
+  ['🧩', '残高がズレたら', `<p>入れ忘れは誰でもあります。設定 →「<b>残高を合わせる</b>」で、銀行アプリやお財布の本当の残高を入れれば、差額を「入れ忘れ」として記録してピタッと合わせます。<b>気づいたときにいつでも</b>どうぞ。</p>`],
+  ['📈', '今後の貯金額の見方', `<ul><li><b>目標</b>：いつまでに・いくら、を決めると達成率と「月いくら減らせば届くか」が出ます</li><li><b>グラフ</b>：過去3か月は実際の残高、その先6か月は予測。月をタップすると金額が出ます</li><li><b>ヒント</b>：記録からいちばん効きそうな節約を1つだけ出します。カテゴリを選んで登録するほど正確になります</li></ul>
+    <p>予測は「毎月の予定」と「ここ3か月のふだんの支出の平均」から計算しています。使い始めは数字がブレやすいです。</p>`],
+  ['🙈', '残高を隠す', `<p>残高は開くたびに隠れた状態になります。「表示」を押すと見えます。アプリを閉じるとまた隠れます。</p>`],
+  ['🔒', 'パスコード', `<p>設定 →「パスコード」でオン・オフ・変更ができます。忘れると元に戻せないので注意してください。</p>`],
+  ['📱', '機種変更・バックアップ', `<p>データは<b>このスマホの中だけ</b>に保存されています。</p><ul><li>機種変更の前に、設定 →「引き継ぎリンクを作る」→ 新しいスマホでリンクを開く</li><li>ときどき「バックアップをファイルに保存」しておくと安心</li><li>ホーム画面のアイコンを消すとデータも消えるので注意</li></ul>`],
+];
+
+function openGuide() {
+  openSheet(`<h3>📖 使い方ガイド</h3><p class="lead">知りたいところをタップしてください</p>
+    <div class="guide">${GUIDE.map(([ic, t, body], i) => `<details ${i === 1 ? 'open' : ''}><summary><span>${ic}</span>${t}</summary><div class="gbody">${body}</div></details>`).join('')}</div>
+    <div class="stack"><button class="btn btn-white" data-close>閉じる</button></div>`,
+  s => { $('[data-close]', s).onclick = closeSheet; });
 }
 
 /* ---------- 毎月の予定 ---------- */
