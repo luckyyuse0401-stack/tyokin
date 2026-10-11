@@ -103,6 +103,22 @@ const GLYPH = {
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
 };
 const glyph = (k, sw = 1.5) => `<svg class="gl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${GLYPH[k] || GLYPH.other}</svg>`;
+/* ---------- カテゴリのイラスト（太線＋ライム） ---------- */
+const ILLUST = {
+ "food": "<path d=\"M10 30h44c0 12-9 22-22 22S10 42 10 30z\" fill=\"#B8F23A\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M18 30c2-5 7-8 14-8s12 3 14 8\" fill=\"#FFFFFF\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M22 52h20\"  fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M40 8l-6 16M48 10l-8 15\" fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"28\" cy=\"26\" r=\"1.6\" fill=\"#1C1F24\"/><circle cx=\"35\" cy=\"25\" r=\"1.6\" fill=\"#1C1F24\"/>",
+ "conv": "<path d=\"M12 26h40v26H12z\" fill=\"#FFFFFF\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M9 18l4-8h38l4 8v4a6 6 0 0 1-11.5 2 6 6 0 0 1-11.5 0 6 6 0 0 1-11.5 0A6 6 0 0 1 9 22z\" fill=\"#B8F23A\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M26 52V38h12v14\" fill=\"#E3E5E0\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M16 34h6M42 34h6\" fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+ "cafe": "<path d=\"M14 24h30v16c0 7-6 13-13 13h-4c-7 0-13-6-13-13z\" fill=\"#B8F23A\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M44 28h3a6 6 0 0 1 0 12h-3\" fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M10 56h40\" fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M24 8c-3 4 3 6 0 10M33 8c-3 4 3 6 0 10\" fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M14 30h30\" stroke=\"#FFFFFF\" stroke-width=\"3\" stroke-linecap=\"round\"/>",
+ "drink": "<path d=\"M14 20h28v32a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4z\" fill=\"#B8F23A\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M42 26h6a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4h-6\" fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M12 20a6 6 0 0 1 6-8 7 7 0 0 1 12-2 7 7 0 0 1 12 4 5 5 0 0 1 2 6\" fill=\"#FFFFFF\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M22 30v16M30 30v16\" stroke=\"#FFFFFF\" stroke-width=\"3\" stroke-linecap=\"round\"/>",
+ "daily": "<path d=\"M24 8h16v8H24z\" fill=\"#E3E5E0\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M20 16h24l4 8v26a6 6 0 0 1-6 6H22a6 6 0 0 1-6-6V24z\" fill=\"#FFFFFF\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M17 30h30v14H17z\" fill=\"#B8F23A\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"46\" cy=\"10\" r=\"2\" fill=\"#1C1F24\"/><circle cx=\"51\" cy=\"15\" r=\"1.4\" fill=\"#1C1F24\"/>",
+ "trans": "<rect x=\"14\" y=\"8\" width=\"36\" height=\"40\" rx=\"8\" fill=\"#B8F23A\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M14 28h36\" fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><rect x=\"20\" y=\"14\" width=\"24\" height=\"10\" rx=\"3\" fill=\"#FFFFFF\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"23\" cy=\"37\" r=\"3\" fill=\"#1C1F24\"/><circle cx=\"41\" cy=\"37\" r=\"3\" fill=\"#1C1F24\"/><path d=\"M20 56l5-8M44 56l-5-8\" fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+ "shop": "<path d=\"M12 22h40l-3 32H15z\" fill=\"#B8F23A\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M23 22v-4a9 9 0 0 1 18 0v4\" fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M24 34c2 5 14 5 16 0\" fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+ "date": "<path d=\"M32 54S10 41 10 24a11 11 0 0 1 22-4 11 11 0 0 1 22 4c0 17-22 30-22 30z\" fill=\"#B8F23A\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M20 22a5 5 0 0 1 6-4\" stroke=\"#FFFFFF\" stroke-width=\"3\" stroke-linecap=\"round\"/><path d=\"M50 8l2 4 4 1-4 1-2 4-2-4-4-1 4-1z\" fill=\"#1C1F24\"/>",
+ "beauty": "<rect x=\"22\" y=\"34\" width=\"20\" height=\"22\" rx=\"3\" fill=\"#FFFFFF\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M24 34V20l12-10v24\" fill=\"#B8F23A\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M22 42h20\" fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+ "fun": "<rect x=\"6\" y=\"20\" width=\"52\" height=\"28\" rx=\"14\" fill=\"#B8F23A\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M18 29v10M13 34h10\" fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"42\" cy=\"31\" r=\"3\" fill=\"#1C1F24\"/><circle cx=\"48\" cy=\"37\" r=\"3\" fill=\"#1C1F24\"/>",
+ "health": "<g transform=\"rotate(-40 32 32)\"><rect x=\"10\" y=\"22\" width=\"44\" height=\"20\" rx=\"10\" fill=\"#FFFFFF\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M32 22h12a10 10 0 0 1 0 20H32z\" fill=\"#B8F23A\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></g>",
+ "other": "<path d=\"M10 22l22-12 22 12v22L32 56 10 44z\" fill=\"#FFFFFF\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M10 22l22 12 22-12\" fill=\"#B8F23A\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M32 34v22\" fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>"
+};
+const catArt = c => ILLUST[c.id] ? `<span class="ill"><svg viewBox="0 0 64 64" aria-hidden="true">${ILLUST[c.id]}</svg></span>` : glyph(c.icon);
 const catOf = (kind, id) => (CATS[kind] || []).find(c => c.id === id);
 
 
@@ -313,6 +329,7 @@ function viewHome() {
       </div>` : '';
 
   return `${installTip}
+  <div class="zlogo"><b>ZUBO<i></i></b></div>
   <section class="balance slim">
     <div class="row"><span class="lbl">${esc(P.name)}の残高 · ${fmtMD(t)}</span><span class="hint">${monthNum(ym)}月の収支 <b class="num ${st.net < 0 ? 'neg' : ''}">${sYen(st.net)}</b></span></div>
     <div class="row mid"><div class="big num ${showBal ? '' : 'masked'}"><small>¥</small>${showBal ? `${bal < 0 ? '−' : ''}${Math.abs(bal).toLocaleString('ja-JP')}` : '••••••'}</div>${eyeBtn()}</div>
@@ -363,7 +380,7 @@ function padHTML() {
     <div class="pad-row">${nums.map(n => `<button class="pk lo ${padLo === n ? 'on' : ''}" data-act="pad-lo" data-n="${n}">${padBig ? `${n}<small>千</small>` : `${n}00`}</button>`).join('')}
       <button class="pk mode" data-act="pad-exact">ぴったり</button></div>
     <div class="pad-label">なにに使った？ <em>${amt ? 'タップで登録' : ''}</em></div>
-    <div class="pad-cats ${amt ? '' : 'off'}">${CATS.expense.map(c => `<button data-act="pad-cat" data-cat="${c.id}" ${amt ? '' : 'disabled'}>${glyph(c.icon)}${c.label}</button>`).join('')}</div>
+    <div class="pad-cats ${amt ? '' : 'off'}">${CATS.expense.map(c => `<button data-act="pad-cat" data-cat="${c.id}" ${amt ? '' : 'disabled'}>${catArt(c)}${c.label}</button>`).join('')}</div>
     <div class="pad-foot ${amt ? '' : 'off'}">
       <button data-act="pad-memo" ${amt ? '' : 'disabled'}>メモを付けて登録</button>
       <button data-act="pad-plain" ${amt ? '' : 'disabled'}>そのまま登録</button>
@@ -911,7 +928,7 @@ function openEntry(o) {
     <div class="amount-field"><span>¥</span><input class="num" inputmode="numeric" pattern="[0-9]*" placeholder="0" value="${amount}" data-amount aria-label="金額"></div>
     ${isRec ? '' : `
       <div class="label">${kind === 'income' ? 'どんな収入？' : 'なにに使った？'}${quick ? '<em>タップでそのまま登録</em>' : ''}</div>
-      <div class="cats">${cats.map(c => `<button class="cat ${c.id === cat ? 'on' : ''}" data-cat="${c.id}">${glyph(c.icon)}${c.label}</button>`).join('')}</div>`}
+      <div class="cats">${cats.map(c => `<button class="cat ${c.id === cat ? 'on' : ''}" data-cat="${c.id}">${kind === 'expense' ? catArt(c) : glyph(c.icon)}${c.label}</button>`).join('')}</div>`}
     <div class="label">メモ（なくてもOK）</div>
     <input class="field" maxlength="40" placeholder="${kind === 'income' ? '例：お祝い、メルカリ' : '例：ランチ、Amazon'}" value="${esc(memo)}" data-memo enterkeyhint="done">
     ${suggestions.length && !isRec ? `<div class="suggest">${suggestions.map(m => `<button data-sug="${esc(m)}">${esc(m)}</button>`).join('')}</div>` : ''}
