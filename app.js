@@ -298,7 +298,7 @@ function txRow(x, { showDate = true } = {}) {
   const amt = todo ? '<div class="a todo">未入力</div>'
     : `<div class="a num ${x.kind === 'income' ? 'inc' : ''}">${sYen(sv(x))}</div>`;
   const act = x.virtual ? `data-act="occ" data-rec="${x.rec}" data-ym="${x.ym}"` : `data-act="tx" data-id="${x.id}"`;
-  return `<button class="item" ${act}>
+  return `<button class="item ${x.kind === 'income' ? 'k-inc' : x.kind === 'expense' ? 'k-exp' : ''}" ${act}>
     <div class="ico ${icoCls}">${txIcon(x)}</div>
     <div class="mid"><div class="t">${esc(title)}${tag}</div><div class="s">${subs.join(' · ') || '&nbsp;'}</div></div>
     ${amt}
@@ -339,7 +339,7 @@ function viewHome() {
 
   <div class="two">
     <button class="btn btn-income" data-act="add" data-kind="income">＋ 収入を追加</button>
-    <button class="btn btn-ghost" data-act="add" data-kind="expense">日付を変えて入力</button>
+    <button class="btn btn-ghost" data-act="add" data-kind="expense">− 昨日以前の支出</button>
   </div>
 
   ${up.length ? `<section class="callout">
@@ -1069,7 +1069,7 @@ const GUIDE = [
     <p>最後に「なにに使った？」の「ごはん」「コンビニ」などをタップすると登録完了。選ぶのが面倒なら「そのまま登録」でOK。</p>
     <p>押しまちがえたら、もう一度押すと選択が外れます（右上の×で全部消せます）。登録したあとでも、下に出る「取り消す」で戻せます。</p>`],
   ['', '1万円以上・端数まで入れたいとき', `<ul><li><b>1万〜</b> を押すと「万円」と「千円」の段に切り替わります（25,000円 → 2万 → 5千）</li><li>1,280円のように端数まで入れたいときは <b>ぴったり</b> から数字を打てます</li><li>だいたいでOK。数十円のズレは「残高を合わせる」でまとめて直せます</li></ul>`],
-  ['', '昨日の分・過去の分を入れる', `<p>ホームの「日付を変えて入力」か、カレンダーで日付をタップして「＋支出」から入れられます。</p>`],
+  ['', '昨日の分・過去の分を入れる', `<p>ホームの「昨日以前の支出」か、カレンダーで日付をタップして「＋支出」から入れられます。</p>`],
   ['', 'クレジットカードの使い方', `<p>カードで買ったものは<b>その都度入れなくてOK</b>です。お金が減るのは引き落とし日なので、その日の金額だけ入れます。</p>
     <ol><li>設定 →「毎月の給料・引き落とし」でカードを追加（例：楽天カード・27日・金額は空欄）</li><li>カレンダーの<b style="color:var(--red)">赤丸</b>の日をタップして、明細の金額を入れる</li><li>その日になると自動で残高から引かれます</li></ol>
     <p>現金や電子マネーで使った分だけ、ふだんのボタンで入れてください。カードで買った物まで入れると二重に減ってしまいます。</p>`],

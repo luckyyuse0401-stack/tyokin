@@ -630,3 +630,14 @@ select.field { appearance: none; -webkit-appearance: none; background: #fff url(
 .adj-diff.in, .adj-diff.ok { background: rgba(184, 242, 58, .25); color: #3F6A0A; }
 .guide details { background: var(--bg); border: 0; }
 .gno { font-size: 11px; color: var(--muted); letter-spacing: .1em; }
+
+/* これからの予定：収入は緑、支出は薄い赤 */
+.callout .item { border-radius: 16px; padding: 12px 12px; margin: 6px -8px 0; width: calc(100% + 16px); }
+.callout .item + .item { border-top: 0; }
+.callout .item.k-exp { background: #FDEEEE; }
+.callout .item.k-exp .ico { background: #fff; color: var(--red); }
+.callout .item.k-exp .a { color: var(--red); }
+.callout .item.k-inc { background: #F0FAE0; }
+.callout .item.k-inc .ico { background: var(--lime); color: var(--ink); }
+.callout .item.k-inc .a { color: #3F6A0A; }
+.callout .foot { margin-top: 12px; }
