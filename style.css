@@ -348,3 +348,16 @@ input, select, textarea { font: inherit; color: inherit; }
   .pinpad button { width: 70px; height: 70px; }
 }
 [hidden] { display: none !important; }
+
+/* ---------- 残高の表示切り替え ---------- */
+.eye {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); color: #fff;
+  border-radius: 999px; padding: 5px 12px 5px 10px; font-size: 13px; font-weight: 600;
+}
+.eye svg { width: 17px; height: 17px; }
+.eye:active { background: rgba(255,255,255,.22); }
+.eye.sm { padding: 3px 9px 3px 7px; font-size: 12px; margin-left: 6px; vertical-align: 1px; }
+.eye.sm svg { width: 14px; height: 14px; }
+.balance .big.masked { letter-spacing: .12em; }
+.mini-balance .in span { display: inline-flex; align-items: center; }

@@ -88,6 +88,8 @@ const ICON = {
   wallet: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12h5v4h-5a2 2 0 0 1 0-4z"/><path d="M6 6V5a2 2 0 0 1 2-2h8"/></svg>',
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>',
   cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="15.5" cy="15.5" r="1.6" fill="currentColor" stroke="none"/></svg>',
+  eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eyeOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-2.7 3.6M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a10 10 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>',
 };
 const logo = (cls = '') => `<div class="logo ${cls}">${ICON.wallet}</div>`;
@@ -103,6 +105,11 @@ let selDay = today();
 let quickTab = store.get('qtab', 0);
 let processedOn = '';
 let hiddenAt = 0;
+let showBal = false;   // 残高は開くたびに隠した状態から
+
+// 残高の表示（隠しているときは ••••••）
+const balText = n => showBal ? `${n < 0 ? '−' : ''}${yen(n)}` : '¥••••••';
+const eyeBtn = (cls = '') => `<button class="eye ${cls}" data-act="toggle-bal" aria-label="${showBal ? '残高を隠す' : '残高を表示'}" aria-pressed="${showBal}">${showBal ? ICON.eye : ICON.eyeOff}<span>${showBal ? '隠す' : '表示'}</span></button>`;
 
 const app = $('#app');
 const tabbar = $('#tabbar');
@@ -282,8 +289,8 @@ function viewHome() {
   ${installTip}
   <div class="page-head"><h2>ホーム</h2><span class="pill">${monthNum(ym)}月の残高</span></div>
   <section class="balance">
-    <div class="row"><span class="lbl">現在残高</span><span class="hint">いま使えるお金</span></div>
-    <div class="big num"><small>¥</small>${bal < 0 ? '−' : ''}${Math.abs(bal).toLocaleString('ja-JP')}</div>
+    <div class="row"><span class="lbl">現在残高</span>${eyeBtn()}</div>
+    <div class="big num ${showBal ? '' : 'masked'}"><small>¥</small>${showBal ? `${bal < 0 ? '−' : ''}${Math.abs(bal).toLocaleString('ja-JP')}` : '••••••'}</div>
     <div class="foot row"><span>${monthNum(ym)}月の収支</span><b class="num ${st.net < 0 ? 'neg' : ''}">${sYen(st.net)}</b></div>
   </section>
 
@@ -296,7 +303,7 @@ function viewHome() {
   ${up.length ? `<section class="callout">
     <div class="h">これからの引き落とし・予定${upOut ? `<span class="num">−${yen(upOut)}</span>` : ''}</div>
     ${up.slice(0, 5).map(x => txRow(x)).join('')}
-    ${upOut ? `<div class="foot"><span>引き落とし後の残高</span><b class="num">${bal - upOut < 0 ? '−' : ''}${yen(bal - upOut)}</b></div>` : ''}
+    ${upOut ? `<div class="foot"><span>引き落とし後の残高</span><b class="num">${balText(bal - upOut)}</b></div>` : ''}
   </section>` : ''}
 
   <div class="sec-head"><h3>使った金額</h3><span class="aside">タップで支出を登録</span></div>
@@ -359,7 +366,7 @@ function viewCalendar() {
     monthList += txRow(x, { showDate: false });
   }
 
-  return `<div class="mini-balance"><div class="in"><span>現在残高</span><b class="num">${bal < 0 ? '−' : ''}${yen(bal)}</b></div></div>
+  return `<div class="mini-balance"><div class="in"><span>現在残高 ${eyeBtn('sm')}</span><b class="num">${balText(bal)}</b></div></div>
   <div class="month-nav">
     <button class="icon-btn" data-act="month" data-d="-1" aria-label="前の月">‹</button>
     <h2 data-act="month" data-d="0">${ymLabel(ym)}</h2>
@@ -403,8 +410,8 @@ function viewSettings() {
   const recs = D.rec.slice().sort((a, b) => a.day - b.day);
   return `<div class="page-head" style="margin-top:6px"><h2>設定</h2></div>
   <section class="set-balance">
-    <div class="k">現在残高</div>
-    <div class="v num">${bal < 0 ? '−' : ''}${yen(bal)}</div>
+    <div class="k" style="display:flex;justify-content:space-between;align-items:center">現在残高 ${eyeBtn()}</div>
+    <div class="v num">${balText(bal)}</div>
     <button data-act="adjust">残高を直接修正</button>
   </section>
 
@@ -489,6 +496,7 @@ app.addEventListener('click', e => {
     case 'tx': openEntry({ id: ds_.id }); break;
     case 'occ': openOccurrence(ds_.rec, ds_.ym); break;
     case 'go': go(ds_.view); break;
+    case 'toggle-bal': showBal = !showBal; render(); break;
     case 'hide-tip': store.set('hideInstallTip', true); render(); break;
     case 'month': {
       const d = Number(ds_.d);
@@ -869,6 +877,7 @@ function openProfile(p) {
   D = normalize(store.get(`data:${p.id}`, null));
   store.set('last', p.id);
   view = 'home';
+  showBal = false;
   calYM = ymOf(today());
   selDay = today();
   processedOn = '';
@@ -1171,7 +1180,7 @@ function boot() {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { hiddenAt = Date.now(); return; }
+  if (document.hidden) { hiddenAt = Date.now(); if (P && showBal) { showBal = false; if (!$('#sheet-root').innerHTML) render(); } return; }
   if (!P) return;
   if (P.pin && hiddenAt && Date.now() - hiddenAt > 3 * 60 * 1000) { showLock(P); return; }
   if (processedOn !== today() && !$('#sheet-root').innerHTML) render();
