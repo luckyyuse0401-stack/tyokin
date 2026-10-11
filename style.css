@@ -347,3 +347,4 @@ input, select, textarea { font: inherit; color: inherit; }
   .pinpad { grid-template-columns: repeat(3, 70px); gap: 14px 22px; }
   .pinpad button { width: 70px; height: 70px; }
 }
+[hidden] { display: none !important; }
