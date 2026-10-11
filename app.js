@@ -35,7 +35,6 @@ const compact = n => {
 const halfWidth = v => String(v ?? '').replace(/[０-９－ー]/g, c => c === '－' || c === 'ー' ? '-' : String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
 const toInt = v => { const n = parseInt(halfWidth(v).replace(/[^\d]/g, ''), 10); return Number.isFinite(n) ? n : 0; };
 const toSignedInt = v => { const s = halfWidth(v).trim(); const n = toInt(s); return s.startsWith('-') ? -n : n; };
-const range = (a, b, step) => { const out = []; for (let v = a; v <= b; v += step) out.push(v); return out; };
 const isStandalone = () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
 
@@ -77,11 +76,6 @@ const CATS = {
 };
 const catOf = (kind, id) => (CATS[kind] || []).find(c => c.id === id);
 
-const QUICK = [
-  { label: '〜1,000円', list: range(100, 1000, 50) },
-  { label: '1,000〜10,000円', list: range(1500, 10000, 500) },
-  { label: '10,000円〜', list: range(15000, 100000, 5000) },
-];
 
 /* ---------- アイコン ---------- */
 const ICON = {
@@ -102,7 +96,10 @@ let D = null;          // そのデータ
 let view = 'home';
 let calYM = ymOf(today());
 let selDay = today();
-let quickTab = store.get('qtab', 0);
+// 金額パッド（上の段＝千の位、下の段＝百の位。「1万〜」で万＋千に切り替え）
+let padHi = 0, padLo = 0, padBig = false;
+const padAmount = () => padBig ? padHi * 10000 + padLo * 1000 : padHi * 1000 + padLo * 100;
+const padReset = () => { padHi = 0; padLo = 0; padBig = false; };
 let processedOn = '';
 let hiddenAt = 0;
 let showBal = false;   // 残高は開くたびに隠した状態から
@@ -276,7 +273,6 @@ function viewHome() {
   const t = today(), ym = ymOf(t), st = monthStats(ym), bal = balance();
   const up = upcoming();
   const recent = sortTx(D.tx.filter(x => x.date <= t)).slice(0, 5);
-  const q = QUICK[quickTab] || QUICK[0];
   const upOut = up.filter(x => x.kind === 'expense').reduce((s, x) => s + x.amount, 0);
 
   const installTip = isIOS() && !isStandalone() && !store.get('hideInstallTip', false)
@@ -285,19 +281,17 @@ function viewHome() {
         <button data-act="hide-tip" aria-label="閉じる" style="font-size:18px;color:var(--muted)">✕</button>
       </div>` : '';
 
-  return `${topBar()}
-  ${installTip}
-  <div class="page-head"><h2>ホーム</h2><span class="pill">${monthNum(ym)}月の残高</span></div>
-  <section class="balance">
-    <div class="row"><span class="lbl">現在残高</span>${eyeBtn()}</div>
-    <div class="big num ${showBal ? '' : 'masked'}"><small>¥</small>${showBal ? `${bal < 0 ? '−' : ''}${Math.abs(bal).toLocaleString('ja-JP')}` : '••••••'}</div>
-    <div class="foot row"><span>${monthNum(ym)}月の収支</span><b class="num ${st.net < 0 ? 'neg' : ''}">${sYen(st.net)}</b></div>
+  return `${installTip}
+  <section class="balance slim">
+    <div class="row"><span class="lbl">${esc(P.name)}の残高 · ${fmtMD(t)}</span><span class="hint">${monthNum(ym)}月の収支 <b class="num ${st.net < 0 ? 'neg' : ''}">${sYen(st.net)}</b></span></div>
+    <div class="row mid"><div class="big num ${showBal ? '' : 'masked'}"><small>¥</small>${showBal ? `${bal < 0 ? '−' : ''}${Math.abs(bal).toLocaleString('ja-JP')}` : '••••••'}</div>${eyeBtn()}</div>
   </section>
 
-  <div class="stats">
-    <div><div class="k">今月の収入</div><div class="v num pos">+${yen(st.inc)}</div></div>
-    <div><div class="k">引き落とし</div><div class="v num">−${yen(st.fixed)}</div></div>
-    <div><div class="k">今月使った金額</div><div class="v num">−${yen(st.spent)}</div></div>
+  ${padHTML()}
+
+  <div class="two">
+    <button class="btn btn-income" data-act="add" data-kind="income">＋ 収入を追加</button>
+    <button class="btn btn-ghost" data-act="add" data-kind="expense">📅 日付を変えて入力</button>
   </div>
 
   ${up.length ? `<section class="callout">
@@ -306,16 +300,56 @@ function viewHome() {
     ${upOut ? `<div class="foot"><span>引き落とし後の残高</span><b class="num">${balText(bal - upOut)}</b></div>` : ''}
   </section>` : ''}
 
-  <div class="sec-head"><h3>使った金額</h3><span class="aside">タップで支出を登録</span></div>
-  <div class="seg">${QUICK.map((g, i) => `<button class="${i === quickTab ? 'on' : ''}" data-act="qtab" data-i="${i}">${g.label}</button>`).join('')}</div>
-  <div class="grid">${q.list.map(v => `<button class="amt num ${v >= 10000 ? 'long' : ''}" data-act="quick" data-amt="${v}">${v.toLocaleString('ja-JP')}<small>円</small></button>`).join('')}</div>
-  <div class="two">
-    <button class="btn btn-income" data-act="add" data-kind="income">＋ 収入を追加</button>
-    <button class="btn btn-ghost" data-act="add" data-kind="expense">その他の支出</button>
+  <div class="stats">
+    <div><div class="k">今月の収入</div><div class="v num pos">+${yen(st.inc)}</div></div>
+    <div><div class="k">引き落とし</div><div class="v num">−${yen(st.fixed)}</div></div>
+    <div><div class="k">今月使った金額</div><div class="v num">−${yen(st.spent)}</div></div>
   </div>
 
   <div class="sec-head"><h3>最近の履歴</h3><button class="aside" data-act="go" data-view="calendar">カレンダーで見る</button></div>
-  <div class="list">${recent.length ? recent.map(x => txRow(x)).join('') : '<div class="empty">まだ記録がありません。<br>上の金額をタップすると支出を登録できます。</div>'}</div>`;
+  <div class="list">${recent.length ? recent.map(x => txRow(x)).join('') : '<div class="empty">まだ記録がありません。<br>上のボタンで金額を選んで、なにに使ったかをタップすると登録できます。</div>'}</div>`;
+}
+
+// 2タップ入力：上の段（千の位）＋下の段（百の位）→ カテゴリをタップで登録
+function padHTML() {
+  const amt = padAmount();
+  const hiUnit = padBig ? '万' : '千', loLabel = n => padBig ? `${n}千` : `${n}00`;
+  const parts = [padHi ? `${padHi}${hiUnit}` : '', padLo ? loLabel(padLo) : ''].filter(Boolean).join(' ＋ ');
+  const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+  return `<section class="pad">
+    <div class="pad-top">
+      <div>
+        <div class="pad-q">いくら使った？</div>
+        <div class="pad-amt num ${amt ? '' : 'empty'}">${amt ? `¥${amt.toLocaleString('ja-JP')}` : '¥0'}</div>
+        <div class="pad-sub">${parts || (padBig ? '1万円以上モード' : '2つの段から1つずつ選んでね')}</div>
+      </div>
+      ${amt ? '<button class="pad-clear" data-act="pad-clear" aria-label="クリア">✕</button>' : ''}
+    </div>
+    <div class="pad-label">${padBig ? '万円' : '千円'}</div>
+    <div class="pad-row">${nums.map(n => `<button class="pk hi ${padHi === n ? 'on' : ''}" data-act="pad-hi" data-n="${n}">${n}<small>${hiUnit}</small></button>`).join('')}
+      <button class="pk mode" data-act="pad-big">${padBig ? '〜9,900' : '1万〜'}</button></div>
+    <div class="pad-label">${padBig ? '千円' : '百円'}</div>
+    <div class="pad-row">${nums.map(n => `<button class="pk lo ${padLo === n ? 'on' : ''}" data-act="pad-lo" data-n="${n}">${padBig ? `${n}<small>千</small>` : `${n}00`}</button>`).join('')}
+      <button class="pk mode" data-act="pad-exact">🪙<small>ぴったり</small></button></div>
+    <div class="pad-label">なにに使った？ <em>${amt ? 'タップで登録' : ''}</em></div>
+    <div class="pad-cats ${amt ? '' : 'off'}">${CATS.expense.map(c => `<button data-act="pad-cat" data-cat="${c.id}" ${amt ? '' : 'disabled'}><span>${c.icon}</span>${c.label}</button>`).join('')}</div>
+    <div class="pad-foot ${amt ? '' : 'off'}">
+      <button data-act="pad-memo" ${amt ? '' : 'disabled'}>✏️ メモを付けて登録</button>
+      <button data-act="pad-plain" ${amt ? '' : 'disabled'}>そのまま登録</button>
+    </div>
+  </section>`;
+}
+
+function padCommit(cat) {
+  const amt = padAmount();
+  if (!amt) return;
+  const tx = { id: uid(), date: today(), kind: 'expense', amount: amt };
+  if (cat) tx.cat = cat;
+  D.tx.push(tx);
+  padReset();
+  save(); render();
+  const what = catOf('expense', cat)?.label;
+  toast(`${yen(amt)} を登録しました${what ? `（${what}）` : ''}`, () => { D.tx = D.tx.filter(x => x !== tx); save(); render(); });
 }
 
 /* =========================================================
@@ -490,8 +524,14 @@ app.addEventListener('click', e => {
   const a = el.dataset.act;
   const ds_ = el.dataset;
   switch (a) {
-    case 'qtab': quickTab = Number(ds_.i); store.set('qtab', quickTab); render(); break;
-    case 'quick': openEntry({ kind: 'expense', amount: Number(ds_.amt), quick: true }); break;
+    case 'pad-hi': { const n = Number(ds_.n); padHi = padHi === n ? 0 : n; render(); break; }
+    case 'pad-lo': { const n = Number(ds_.n); padLo = padLo === n ? 0 : n; render(); break; }
+    case 'pad-big': padBig = !padBig; padHi = 0; padLo = 0; render(); break;
+    case 'pad-clear': padReset(); render(); break;
+    case 'pad-cat': padCommit(ds_.cat); break;
+    case 'pad-plain': padCommit(null); break;
+    case 'pad-memo': { const amount = padAmount(); padReset(); render(); openEntry({ kind: 'expense', amount, quick: true }); break; }
+    case 'pad-exact': openEntry({ kind: 'expense' }); break;
     case 'add': openEntry({ kind: ds_.kind, date: ds_.date }); break;
     case 'tx': openEntry({ id: ds_.id }); break;
     case 'occ': openOccurrence(ds_.rec, ds_.ym); break;
@@ -878,6 +918,7 @@ function openProfile(p) {
   store.set('last', p.id);
   view = 'home';
   showBal = false;
+  padReset();
   calYM = ymOf(today());
   selDay = today();
   processedOn = '';
