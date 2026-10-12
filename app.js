@@ -517,7 +517,9 @@ function varRate() {
   const t = today();
   const from = [startDate(), `${addMonths(ymOf(t), -3)}-01`].sort().pop();
   const w = spendWindow(from, t);
-  return { ...w, from, daily: w.days > 0 ? w.total / w.days : 0 };
+  // 使い始めて2週間未満は数日分を1か月に引き伸ばすと大きくズレるので、ふだんの支出は予測に入れない
+  const learning = w.days < 14;
+  return { ...w, from, learning, left: Math.max(1, 14 - w.days), daily: !learning && w.days > 0 ? w.total / w.days : 0 };
 }
 
 // その月の「これから起きる」予定の合計（今日より後のものだけ）
@@ -671,7 +673,8 @@ function viewFuture() {
   } else {
     const pct = Math.round(gi.progress * 100), C = 2 * Math.PI * 42;
     let status;
-    if (gi.expired) status = `期限を過ぎました。<b class="ok">目標を変えてみよう</b>`;
+    if (vr.learning) status = `記録が2週間たまると、届くかどうかを計算します<br>（あと${vr.left}日）`;
+    else if (gi.expired) status = `期限を過ぎました。<b class="ok">目標を変えてみよう</b>`;
     else if (gi.short <= 0) status = `このペースなら<b class="ok">届きます</b>${gi.reach && gi.reach < gi.ym ? `<br>${ymLabel(gi.reach)}ごろに到達` : ''}`;
     else status = `今のペースだと <b>${yen(gi.short)} 足りない</b><br>月 ${yen(gi.perMonth)} 減らせば届く`;
     goalCard = `<button class="goal" data-act="goal">
@@ -682,12 +685,15 @@ function viewFuture() {
 
   return `<div class="page-head" style="margin-top:6px"><h2>今後の貯金額</h2>${gi ? '<button class="pill" data-act="goal">目標を変える</button>' : ''}</div>
   ${goalCard}
-  <section class="chartcard">
+  ${vr.learning ? `<section class="chartcard">
+    <div class="h"><b>これからの残高</b></div>
+    <div class="learn"><b>あと${vr.left}日で予測が出ます</b>使い始めの数日分だけで1か月を計算すると大きくズレるので、記録が2週間たまってから予測します。</div>
+  </section>` : `<section class="chartcard">
     <div class="h"><b>これからの残高</b><span>月をタップ</span></div>
     ${futureChart(pts, futSel, gi?.amount)}
     <div class="pick"><span>${selLabel}</span><b class="num">${sel.v < 0 ? '−' : ''}${yen(sel.v)}</b></div>
-    <p class="note" style="margin:8px 2px 0">${sel.kind === 'past' ? '実際の記録の月末残高です' : `今より ${sYen(diff)}`}${sel.kind !== 'past' ? ` ・ ふだんの支出は月 ${yen(vr.daily * 30.4)} として計算` : ''}</p>
-  </section>
+    <p class="note" style="margin:8px 2px 0">${sel.kind === 'past' ? '実際の記録の月末残高です' : `今より ${sYen(diff)}`}${sel.kind !== 'past' ? (vr.learning ? ` ・ ふだんの支出は、記録が2週間たまってから計算に入れます（あと${vr.left}日）` : ` ・ ふだんの支出は月 ${yen(vr.daily * 30.4)} として計算`) : ''}</p>
+  </section>`}
   <section class="hintc ${hint.wait ? 'wait' : ''}">
     <p>${hint.text}<small>${esc(hint.sub)}</small></p>
   </section>

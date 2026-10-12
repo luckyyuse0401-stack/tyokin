@@ -673,3 +673,5 @@ select.field { appearance: none; -webkit-appearance: none; background: #fff url(
 .scan-cancel { position: relative; margin-top: 36px; background: #fff; color: var(--ink); border-radius: 999px; padding: 14px 34px; font-weight: 800; }
 .bio-btn { width: auto; padding: 0 26px; display: inline-flex; gap: 10px; }
 .bio-btn .gl { width: 22px; height: 22px; }
+.learn { background: var(--bg); border-radius: 16px; padding: 16px; margin-top: 12px; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.learn b { display: block; font-size: 16px; color: var(--ink); margin-bottom: 4px; }
