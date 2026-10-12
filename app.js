@@ -1278,8 +1278,8 @@ function showWelcome() {
     <div class="hero">${logo()}<h1 class="wordmark">ZUBO<i></i></h1><p>ズボラのための、お金の手帳</p></div>
     <div class="card">
       <div class="label" style="margin-top:0">あなたの名前</div>
-      <input class="field" maxlength="12" placeholder="例：まい" data-name>
-      <div class="label">今の残高（だいたいでOK）</div>
+      <input class="field" maxlength="12" placeholder="ニックネーム" data-name>
+      <div class="label">今の残高</div>
       <div class="with-unit"><input class="field num" inputmode="numeric" placeholder="例：300000" data-bal><span>円</span></div>
       <div class="switch"><div><b>パスコードをかける</b><div class="note" style="margin:0">開くときに4桁の数字を聞きます</div></div><button class="toggle on" data-pin aria-label="パスコード"></button></div>
       <div class="stack"><button class="btn btn-primary" data-start>はじめる</button></div>
