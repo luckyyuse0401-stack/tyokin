@@ -641,3 +641,33 @@ select.field { appearance: none; -webkit-appearance: none; background: #fff url(
 .callout .item.k-inc .ico { background: var(--lime); color: var(--ink); }
 .callout .item.k-inc .a { color: #3F6A0A; }
 .callout .foot { margin-top: 12px; }
+
+/* ---------- 注意・引き継ぎ・控え ---------- */
+.notice { display: flex; gap: 12px; align-items: center; border-radius: 20px; padding: 14px; margin: 0 0 12px; }
+.notice .ni { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none; }
+.notice .ni .gl { width: 22px; height: 22px; }
+.notice .nt { flex: 1; font-size: 13px; line-height: 1.5; color: var(--ink); }
+.notice .nt b { display: block; font-size: 14px; }
+.n-warn { background: #FDEEEE; border: 2px solid #F5C2C2; }
+.n-warn .ni { background: var(--red); color: #fff; }
+.n-warn .nt b { color: #C62E33; }
+.tbtn { height: 66px; flex-direction: column; gap: 2px; border-radius: 22px; }
+.tbtn small { font-size: 11px; color: var(--muted); font-weight: 500; }
+.qrbox { background: #fff; border-radius: 24px; padding: 18px; box-shadow: var(--lift); display: grid; place-items: center; margin-top: 6px; }
+.qrbox svg { width: min(280px, 72vw); height: auto; display: block; }
+.snap .item { padding: 12px 0; }
+.snap .r { font-size: 13px; font-weight: 800; border-radius: 999px; padding: 8px 14px; background: var(--card2); color: var(--ink); white-space: nowrap; }
+.scanner { position: fixed; inset: 0; z-index: 80; background: #0B0C0E; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
+.scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.scan-frame { position: relative; width: 250px; height: 250px; border-radius: 28px; box-shadow: 0 0 0 9999px rgba(0,0,0,.5); }
+.scan-frame i { position: absolute; width: 56px; height: 56px; border: 0 solid var(--lime); }
+.scan-frame i:nth-child(1) { top: -3px; left: -3px; border-width: 5px 0 0 5px; border-radius: 28px 0 0 0; }
+.scan-frame i:nth-child(2) { top: -3px; right: -3px; border-width: 5px 5px 0 0; border-radius: 0 28px 0 0; }
+.scan-frame i:nth-child(3) { bottom: -3px; left: -3px; border-width: 0 0 5px 5px; border-radius: 0 0 0 28px; }
+.scan-frame i:nth-child(4) { bottom: -3px; right: -3px; border-width: 0 5px 5px 0; border-radius: 0 0 28px 0; }
+.scan-frame b { position: absolute; left: 14px; right: 14px; top: 10%; height: 3px; background: var(--lime); box-shadow: 0 0 16px var(--lime); border-radius: 2px; animation: scanline 2s ease-in-out infinite alternate; }
+@keyframes scanline { to { top: 88%; } }
+.scan-text { position: relative; margin-top: 34px; text-align: center; }
+.scan-text b { display: block; font-size: 18px; }
+.scan-text span { font-size: 13px; color: #bbb; }
+.scan-cancel { position: relative; margin-top: 36px; background: #fff; color: var(--ink); border-radius: 999px; padding: 14px 34px; font-weight: 800; }

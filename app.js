@@ -101,6 +101,9 @@ const GLYPH = {
   lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   phone: '<rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/>',
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  warn: '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/>',
+  qr: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
 };
 const glyph = (k, sw = 1.5) => `<svg class="gl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${GLYPH[k] || GLYPH.other}</svg>`;
 /* ---------- カテゴリのイラスト（太線＋ライム） ---------- */
@@ -322,11 +325,9 @@ function viewHome() {
   const recent = sortTx(D.tx.filter(x => x.date <= t)).slice(0, 5);
   const upOut = up.filter(x => x.kind === 'expense').reduce((s, x) => s + x.amount, 0);
 
-  const installTip = isIOS() && !isStandalone() && !store.get('hideInstallTip', false)
-    ? `<div class="tip" style="display:flex;gap:10px;align-items:flex-start">
-        <div style="flex:1">Safariの共有ボタン →「ホーム画面に追加」で、アプリのように使えます。<b>データも消えにくくなる</b>のでおすすめです。<br><small>※ホーム画面のアプリとSafariは別々に保存されます。先に追加してから使い始めてください。</small></div>
-        <button data-act="hide-tip" aria-label="閉じる" style="color:var(--muted);width:22px;height:22px">${glyph('x')}</button>
-      </div>` : '';
+  const installTip = isIOS() && !isStandalone()
+    ? `<div class="notice n-warn"><div class="ni">${glyph('warn', 2)}</div>
+        <div class="nt"><b>このままだとデータが消えることがあります</b>Safariで開いています。共有ボタン →「ホーム画面に追加」して、そこから使ってください。</div></div>` : '';
 
   return `${installTip}
   <div class="zlogo"><b>ZUBO<i></i></b></div>
@@ -763,14 +764,19 @@ function viewSettings() {
 
   <div class="sec-head"><h3>機種変更・バックアップ</h3></div>
   <div class="menu">
-    <button data-act="transfer"><div class="l"><b>引き継ぎリンクを作る</b><small>新しいスマホでリンクを開くだけで続きから使えます</small></div><span class="chev">›</span></button>
+    <button data-act="transfer-qr"><div class="l"><b>新しいスマホに引き継ぐ</b><small>QRを出して、新しいスマホで映すだけ</small></div><span class="chev">›</span></button>
+    <button data-act="transfer-copy"><div class="l"><b>引き継ぎをコピー</b><small>同じスマホでアイコンを入れ直すときに</small></div><span class="chev">›</span></button>
+    <button data-act="import"><div class="l"><b>引き継ぎを読み込む</b><small>QR・貼り付け・ファイルから</small></div><span class="chev">›</span></button>
     <button data-act="export"><div class="l">バックアップをファイルに保存</div><span class="chev">›</span></button>
-    <button data-act="import"><div class="l">ファイルから読み込む</div><span class="chev">›</span></button>
   </div>
+
+  <div class="sec-head"><h3>自動の控え</h3><span class="aside">毎日1回・7日分</span></div>
+  <div class="list snap">${snapRows()}</div>
+  <p class="note">間違えて消したときなどに、その日の状態に戻せます。</p>
 
   <div class="storage-note">
     <div class="sn-ic">${glyph('phone', 1.3)}</div>
-    <div><b>このスマホだけに保存</b><p>ログイン不要で、データはこの端末の中だけにあります。ブラウザのデータ削除や機種変更では消えてしまうので、機種変更の前に「引き継ぎリンク」を作ってください。${isIOS() ? 'ホーム画面に追加したアプリとSafariは別々に保存されます。' : ''}</p></div>
+    <div><b>このスマホだけに保存</b><p>ログイン不要で、データはこの端末の中だけにあります。ブラウザのデータ削除や機種変更では消えてしまうので、機種変更の前に「新しいスマホに引き継ぐ」を使ってください。${isIOS() ? 'ホーム画面に追加したアプリとSafariは別々に保存されます。' : ''}</p></div>
   </div>
 
   <div class="menu" style="margin-top:26px">
@@ -851,8 +857,11 @@ app.addEventListener('click', e => {
     case 'lock': showLock(P); break;
     case 'switch': showPicker(); break;
     case 'transfer': openTransfer(); break;
+    case 'transfer-qr': openTransferQR(); break;
+    case 'transfer-copy': copyTransfer(); break;
+    case 'snap': restoreSnap(Number(ds_.i)); break;
     case 'export': exportFile(); break;
-    case 'import': pickImportFile(); break;
+    case 'import': openImport(); break;
     case 'delete-account': confirmDeleteAccount(P); break;
   }
 });
@@ -1079,7 +1088,7 @@ const GUIDE = [
     <p>予測は「毎月の予定」と「ここ3か月のふだんの支出の平均」から計算しています。使い始めは数字がブレやすいです。</p>`],
   ['', '残高を隠す', `<p>残高は開くたびに隠れた状態になります。「表示」を押すと見えます。アプリを閉じるとまた隠れます。</p>`],
   ['', 'パスコード', `<p>設定 →「パスコード」でオン・オフ・変更ができます。忘れると元に戻せないので注意してください。</p>`],
-  ['', '機種変更・バックアップ', `<p>データは<b>このスマホの中だけ</b>に保存されています。</p><ul><li>機種変更の前に、設定 →「引き継ぎリンクを作る」→ 新しいスマホでリンクを開く</li><li>ときどき「バックアップをファイルに保存」しておくと安心</li><li>ホーム画面のアイコンを消すとデータも消えるので注意</li></ul>`],
+  ['', '機種変更・バックアップ', `<p>データは<b>このスマホの中だけ</b>に保存されています。</p><ul><li>機種変更：前のスマホで 設定 →「新しいスマホに引き継ぐ」でQRを出し、新しいスマホの最初の画面で「QRで引き継ぐ」を押して映すだけ</li><li>アイコンを入れ直すとき：設定 →「引き継ぎをコピー」→ 入れ直したら最初の画面の「貼り付けで引き継ぐ」</li><li>間違えて消したときは、設定 →「自動の控え」から7日前まで戻せます</li><li>ときどき「バックアップをファイルに保存」しておくと安心</li><li>ホーム画面のアイコンを消すとデータも消えるので注意</li></ul>`],
 ];
 
 function openGuide() {
@@ -1259,13 +1268,14 @@ function openProfile(p) {
   calYM = ymOf(today());
   selDay = today();
   processedOn = '';
+  takeSnapshot();
   render(false);
 }
 
 function showWelcome() {
   const hasOthers = getProfiles().length > 0;
   fullScreen(`<div class="screen">
-    <div class="hero">${logo()}<h1 class="wordmark">ZUB<i></i></h1><p>ズボラのための、お金の手帳</p></div>
+    <div class="hero">${logo()}<h1 class="wordmark">ZUBO<i></i></h1><p>ズボラのための、お金の手帳</p></div>
     <div class="card">
       <div class="label" style="margin-top:0">あなたの名前</div>
       <input class="field" maxlength="12" placeholder="例：まい" data-name>
@@ -1274,12 +1284,18 @@ function showWelcome() {
       <div class="switch"><div><b>パスコードをかける</b><div class="note" style="margin:0">開くときに4桁の数字を聞きます</div></div><button class="toggle on" data-pin aria-label="パスコード"></button></div>
       <div class="stack"><button class="btn btn-primary" data-start>はじめる</button></div>
     </div>
-    <div style="text-align:center;margin-top:16px">
-      <button class="btn-text" data-file>機種変更：バックアップファイルから始める</button>
+    <div class="pad-label" style="justify-content:center;margin-top:22px">前のスマホから引き継ぐ</div>
+    <div class="two" style="margin-top:6px">
+      <button class="btn btn-white tbtn" data-qr><b>QRで引き継ぐ</b><small>前のスマホが手元にある</small></button>
+      <button class="btn btn-white tbtn" data-paste><b>貼り付けで引き継ぐ</b><small>コピーした引き継ぎから</small></button>
+    </div>
+    <div style="text-align:center;margin-top:8px">
+      <button class="btn-text" data-file>バックアップファイルから</button>
       ${hasOthers ? '<br><button class="btn-text" data-back>戻る</button>' : ''}
     </div>
-    <p class="note" style="text-align:center">前のスマホで作った「引き継ぎリンク」を開いた場合は、そのまま読み込まれます。</p>
   </div>`);
+  $('[data-qr]', app).onclick = scanQR;
+  $('[data-paste]', app).onclick = pasteImport;
   const pinBtn = $('[data-pin]', app);
   pinBtn.onclick = () => pinBtn.classList.toggle('on');
   $('[data-file]', app).onclick = pickImportFile;
@@ -1304,7 +1320,7 @@ function showPicker() {
   const list = getProfiles();
   if (!list.length) return showWelcome();
   fullScreen(`<div class="screen">
-    <div class="hero">${logo()}<h1 class="wordmark">ZUB<i></i></h1><p>だれが使いますか？</p></div>
+    <div class="hero">${logo()}<h1 class="wordmark">ZUBO<i></i></h1><p>だれが使いますか？</p></div>
     <div class="profiles">
       ${list.map(p => `<button class="profile-btn" data-id="${p.id}"><span class="avatar">${esc([...p.name][0] || '?')}</span>${esc(p.name)}<span class="lock">${p.pin ? glyph('lock', 1.4) : ''}</span></button>`).join('')}
     </div>
@@ -1347,7 +1363,7 @@ function confirmDeleteAccount(p) {
     title: `${esc(p.name)}のデータを削除しますか？`, ok: '完全に削除する', danger: true,
     body: '残高・履歴・設定がすべて消えて、元に戻せません。',
     onOk: () => {
-      store.del(`data:${p.id}`);
+      store.del(`data:${p.id}`); store.del(`snap:${p.id}`);
       setProfiles(getProfiles().filter(x => x.id !== p.id));
       if (store.get('last', null) === p.id) store.del('last');
       boot();
@@ -1508,7 +1524,7 @@ function confirmImport(obj, { fromLink = false } = {}) {
       ${body}
       <div class="stack"><button class="btn btn-primary" data-ok>このスマホで使いはじめる</button><button class="btn btn-text" data-cancel>やめる</button></div></div>`);
     $('[data-ok]', app).onclick = apply;
-    $('[data-cancel]', app).onclick = () => { history.replaceState(null, '', location.pathname + location.search); boot(); };
+    $('[data-cancel]', app).onclick = () => { if (location.hash) history.replaceState(null, '', location.pathname + location.search); boot(); };
   } else {
     openSheet(`<h3>このデータを読み込みますか？</h3>${body}
       <div class="stack"><button class="btn btn-primary" data-ok>読み込む</button><button class="btn btn-text" data-cancel>やめる</button></div>`,
@@ -1516,8 +1532,8 @@ function confirmImport(obj, { fromLink = false } = {}) {
   }
 }
 
-function handleImportLink(code) {
-  const cancel = () => { history.replaceState(null, '', location.pathname + location.search); boot(); };
+function handleImportLink(code, onCancel) {
+  const cancel = onCancel || (() => { history.replaceState(null, '', location.pathname + location.search); boot(); });
   const fail = msg => {
     fullScreen(`<div class="screen"><div class="hero">${logo()}<h1>読み込めませんでした</h1><p>${msg}</p></div>
       <div class="stack"><button class="btn btn-navy" data-back>戻る</button></div></div>`);
@@ -1544,6 +1560,180 @@ function handleImportLink(code) {
   }, cancel);
 }
 
+/* ---------- QR・貼り付けで引き継ぐ ---------- */
+const QR_MAX = 2300; // QR1枚に収まる文字数の目安
+const loadScript = src => new Promise((res, rej) => {
+  if ($(`script[src="${src}"]`)) return res();
+  const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = rej; document.head.appendChild(el);
+});
+
+// 引き継ぎ用の文字列を作る（大きすぎるときは古い履歴を残高にまとめる）
+async function makeTransferCode(pin, limit = Infinity) {
+  for (const trim of [0, 12, 6, 3, 1]) {
+    const obj = exportObject(trim);
+    const code = await encodeTransfer(obj, pin);
+    if (code.length <= limit) return { code, trim, count: obj.d.tx.length };
+  }
+  return null;
+}
+const withPin = fn => { if (P.pin) verifyPinSheet('今のパスコードを入力', fn); else fn(null); };
+
+function openTransferQR() {
+  withPin(async pin => {
+    try {
+      const [made] = await Promise.all([makeTransferCode(pin, QR_MAX), loadScript('vendor/qrcode.js')]);
+      if (!made) { toast('データが多すぎてQRにできません。「引き継ぎをコピー」を使ってください'); return; }
+      const q = qrcode(0, 'L'); q.addData('ZUBO:' + made.code); q.make();
+      const svg = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+      openSheet(`<h3>新しいスマホで読み取る</h3>
+        <p class="lead">新しいスマホでZUBOをホーム画面に追加して開き、「QRで引き継ぐ」を押して、このQRを映してください。</p>
+        <div class="qrbox">${svg}</div>
+        <p class="note" style="text-align:center">記録 ${made.count}件${made.trim ? `（直近${made.trim}か月分。それより前は残高にまとめています）` : ''}${pin ? ' ・ パスコードで保護' : ''}</p>
+        ${pin ? '' : '<div class="warn">パスコードがオフなので、このQRを読み取った人は中身を見られます。</div>'}
+        <div class="stack"><button class="btn btn-white" data-close>閉じる</button></div>`,
+      s => { $('[data-close]', s).onclick = closeSheet; });
+    } catch { toast('QRを作れませんでした'); }
+  });
+}
+
+function copyTransfer() {
+  withPin(async pin => {
+    try {
+      const made = await makeTransferCode(pin);
+      const url = `${location.origin}${location.pathname}#import=${made.code}`;
+      try { await navigator.clipboard.writeText(url); }
+      catch { prompt('この文字をコピーしてください', url); return; }
+      openSheet(`<h3>コピーしました</h3>
+        <p class="lead">このあと、アイコンを入れ直したり新しいスマホで開いたりしたら、最初の画面の「<b>貼り付けで引き継ぐ</b>」を押すだけです。</p>
+        <div class="tip">同じApple IDのiPhone同士なら、コピーした内容はそのまま別のiPhoneでも貼り付けられます。うまくいかないときは、LINEの自分用トークやメモに貼って送ってください。</div>
+        ${pin ? '' : '<div class="warn">パスコードがオフなので、この内容を知っている人は中身を見られます。人には送らないでください。</div>'}
+        <div class="stack"><button class="btn btn-primary" data-close>OK</button></div>`,
+      s => { $('[data-close]', s).onclick = closeSheet; });
+    } catch { toast('コピーできませんでした'); }
+  });
+}
+
+// 貼り付けた文字やQRから引き継ぎコードを取り出す
+const extractCode = text => {
+  const t = String(text || '').trim();
+  const m = t.match(/#import=([A-Za-z0-9_-]+)/) || t.match(/^ZUBO:([A-Za-z0-9_-]+)$/) || t.match(/^([A-Za-z0-9_-]{40,})$/);
+  return m ? m[1] : null;
+};
+const backToStart = () => { closeSheet(); P ? render() : boot(); };
+function importCode(code) {
+  closeSheet();
+  if (P) { const prev = P; handleImportLink(code, () => openProfile(prev)); } else handleImportLink(code, boot);
+}
+
+async function pasteImport() {
+  let text = '';
+  try { text = await navigator.clipboard.readText(); } catch { /* 手で貼ってもらう */ }
+  const code = extractCode(text);
+  if (code) { importCode(code); return; }
+  openSheet(`<h3>貼り付けで引き継ぐ</h3>
+    <p class="lead">コピーした引き継ぎを、下に貼り付けてください。</p>
+    <textarea class="field" rows="4" data-v placeholder="長押し →「ペースト」"></textarea>
+    <div class="stack"><button class="btn btn-primary" data-ok>読み込む</button><button class="btn btn-text" data-cancel>やめる</button></div>`,
+  s => {
+    $('[data-cancel]', s).onclick = closeSheet;
+    $('[data-ok]', s).onclick = () => {
+      const c = extractCode($('[data-v]', s).value);
+      if (!c) { shake($('[data-v]', s)); toast('引き継ぎの文字が見つかりませんでした'); return; }
+      importCode(c);
+    };
+  });
+}
+
+function openImport() {
+  openSheet(`<h3>引き継ぎを読み込む</h3>
+    <p class="lead">前のスマホの「新しいスマホに引き継ぐ」のQRを映すか、コピーした引き継ぎを貼り付けてください。</p>
+    <div class="stack">
+      <button class="btn btn-primary" data-qr>QRを読み取る</button>
+      <button class="btn btn-white" data-paste>貼り付けて読み込む</button>
+      <button class="btn btn-text" data-file>バックアップファイルから</button>
+    </div>
+    <p class="note">読み込むと、同じ人のデータはこのスマホで上書きされます。</p>`,
+  s => {
+    $('[data-qr]', s).onclick = () => { closeSheet(); scanQR(); };
+    $('[data-paste]', s).onclick = () => { closeSheet(); pasteImport(); };
+    $('[data-file]', s).onclick = () => { closeSheet(); pickImportFile(); };
+  });
+}
+
+// カメラでQRを読み取る
+async function scanQR() {
+  if (!navigator.mediaDevices?.getUserMedia) { toast('このブラウザではカメラが使えません。「貼り付けで引き継ぐ」を使ってください'); return; }
+  const root = document.createElement('div');
+  root.className = 'scanner';
+  root.innerHTML = `<video playsinline muted></video><div class="scan-frame"><i></i><i></i><i></i><i></i><b></b></div>
+    <div class="scan-text"><b>前のスマホのQRを映してください</b><span>読み取れたら自動で次に進みます</span></div>
+    <button class="scan-cancel">やめる</button>`;
+  document.body.appendChild(root);
+  let stream, stopped = false;
+  const stop = () => { stopped = true; stream?.getTracks().forEach(t => t.stop()); root.remove(); };
+  $('.scan-cancel', root).onclick = stop;
+  try {
+    const [st] = await Promise.all([navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }), loadScript('vendor/jsQR.js')]);
+    stream = st;
+    if (stopped) { stop(); return; }
+    const video = $('video', root);
+    video.srcObject = stream; await video.play();
+    const cv = document.createElement('canvas'), ctx = cv.getContext('2d', { willReadFrequently: true });
+    const tick = () => {
+      if (stopped) return;
+      if (video.readyState >= 2) {
+        const w = video.videoWidth, h = video.videoHeight, k = Math.min(1, 720 / Math.max(w, h));
+        cv.width = w * k; cv.height = h * k;
+        ctx.drawImage(video, 0, 0, cv.width, cv.height);
+        const hit = jsQR(ctx.getImageData(0, 0, cv.width, cv.height).data, cv.width, cv.height, { inversionAttempts: 'dontInvert' });
+        const code = hit && extractCode(hit.data);
+        if (code) { navigator.vibrate?.(30); stop(); importCode(code); return; }
+      }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  } catch {
+    stop();
+    toast('カメラを使えませんでした。設定でカメラを許可するか、「貼り付けで引き継ぐ」を使ってください');
+  }
+}
+
+/* ---------- 自動の控え（毎日1回・7日分） ---------- */
+const SNAP_DAYS = 7;
+const getSnaps = () => P ? store.get(`snap:${P.id}`, []) : [];
+function takeSnapshot() {
+  if (!P || !D) return;
+  const snaps = getSnaps();
+  if (snaps[0]?.date === today()) return;
+  snaps.unshift({ date: today(), data: JSON.parse(JSON.stringify(D)) });
+  store.set(`snap:${P.id}`, snaps.slice(0, SNAP_DAYS));
+}
+function snapRows() {
+  const snaps = getSnaps();
+  if (!snaps.length) return '<div class="empty">明日から自動で控えが作られます</div>';
+  const t = today(), y = addDays(t, -1);
+  return snaps.map((sn, i) => {
+    const label = sn.date === t ? `今日 ${fmtMD(sn.date)}` : sn.date === y ? `昨日 ${fmtMD(sn.date)}` : fmtMD(sn.date);
+    return `<div class="item"><div class="mid"><div class="t">${label}${sn.before ? '（戻す前）' : 'の朝'}</div><div class="s">記録 ${sn.data.tx?.length || 0}件</div></div>
+      <button class="r" data-act="snap" data-i="${i}">この日に戻す</button></div>`;
+  }).join('');
+}
+function restoreSnap(i) {
+  const sn = getSnaps()[i];
+  if (!sn) return;
+  confirmSheet({
+    title: `${fmtMD(sn.date)}の朝の状態に戻しますか？`, ok: '戻す', danger: true,
+    body: 'それ以降に入れた記録は消えます。（戻す前の状態も控えに残すので、やり直せます）',
+    onOk: () => {
+      const snaps = getSnaps();
+      snaps.unshift({ date: today(), data: JSON.parse(JSON.stringify(D)), before: true });
+      store.set(`snap:${P.id}`, snaps.slice(0, SNAP_DAYS + 1));
+      D = normalize(JSON.parse(JSON.stringify(sn.data)));
+      save(); processedOn = ''; render(); toast(`${fmtMD(sn.date)}の状態に戻しました`);
+    },
+  });
+}
+
 /* =========================================================
    起動
    ========================================================= */
@@ -1561,6 +1751,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) { hiddenAt = Date.now(); if (P && showBal) { showBal = false; if (!$('#sheet-root').innerHTML) render(); } return; }
   if (!P) return;
   if (P.pin && hiddenAt && Date.now() - hiddenAt > 3 * 60 * 1000) { showLock(P); return; }
+  if (processedOn !== today()) takeSnapshot();
   if (processedOn !== today() && !$('#sheet-root').innerHTML) render();
 });
 window.addEventListener('hashchange', () => { if (location.hash.startsWith('#import=')) boot(); });
