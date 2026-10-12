@@ -101,6 +101,7 @@ const GLYPH = {
   lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   phone: '<rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/>',
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  face: '<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 9v1.5M15 9v1.5M12 9v4h-1M9.5 16a3.5 3.5 0 0 0 5 0"/>',
   warn: '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/>',
   qr: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
@@ -758,6 +759,7 @@ function viewSettings() {
   <div class="menu">
     <button data-act="rename"><div class="l">名前<small>画面上の表示に使います</small></div><div class="r">${esc(P.name)}</div><span class="chev">›</span></button>
     <button data-act="pin"><div class="l">パスコード<small>アプリを開くときの4桁の数字</small></div><div class="r">${P.pin ? 'オン' : 'オフ'}</div><span class="chev">›</span></button>
+    ${P.pin && bioSupported ? `<button data-act="faceid"><div class="l">Face ID<small>パスコードの代わりに顔で開く</small></div><div class="r">${P.fid ? 'オン' : 'オフ'}</div><span class="chev">›</span></button>` : ''}
     ${P.pin ? '<button data-act="lock"><div class="l">いますぐロックする</div><span class="chev">›</span></button>' : ''}
     <button data-act="switch"><div class="l">アカウントを切り替え・追加</div><span class="chev">›</span></button>
   </div>
@@ -854,6 +856,7 @@ app.addEventListener('click', e => {
     case 'rec': openRec(ds_.id); break;
     case 'rename': openRename(); break;
     case 'pin': openPinSettings(); break;
+    case 'faceid': openFaceIdSettings(); break;
     case 'lock': showLock(P); break;
     case 'switch': showPicker(); break;
     case 'transfer': openTransfer(); break;
@@ -1087,7 +1090,7 @@ const GUIDE = [
   ['', '今後の貯金額の見方', `<ul><li><b>目標</b>：いつまでに・いくら、を決めると達成率と「月いくら減らせば届くか」が出ます</li><li><b>グラフ</b>：過去3か月は実際の残高、その先6か月は予測。月をタップすると金額が出ます</li><li><b>ヒント</b>：記録からいちばん効きそうな節約を1つだけ出します。カテゴリを選んで登録するほど正確になります</li></ul>
     <p>予測は「毎月の予定」と「ここ3か月のふだんの支出の平均」から計算しています。使い始めは数字がブレやすいです。</p>`],
   ['', '残高を隠す', `<p>残高は開くたびに隠れた状態になります。「表示」を押すと見えます。アプリを閉じるとまた隠れます。</p>`],
-  ['', 'パスコード', `<p>設定 →「パスコード」でオン・オフ・変更ができます。忘れると元に戻せないので注意してください。</p>`],
+  ['', 'パスコード', `<p>設定 →「パスコード」でオン・オフ・変更ができます。パスコードをオンにすると「Face ID」も使えます。パスコードを忘れると元に戻せないので注意してください。</p>`],
   ['', '機種変更・バックアップ', `<p>データは<b>このスマホの中だけ</b>に保存されています。</p><ul><li>機種変更：前のスマホで 設定 →「新しいスマホに引き継ぐ」でQRを出し、新しいスマホの最初の画面で「QRで引き継ぐ」を押して映すだけ</li><li>アイコンを入れ直すとき：設定 →「引き継ぎをコピー」→ 入れ直したら最初の画面の「貼り付けで引き継ぐ」</li><li>間違えて消したときは、設定 →「自動の控え」から7日前まで戻せます</li><li>ときどき「バックアップをファイルに保存」しておくと安心</li><li>ホーム画面のアイコンを消すとデータも消えるので注意</li></ul>`],
 ];
 
@@ -1170,7 +1173,49 @@ function openPinSettings() {
     <div class="stack"><button class="btn btn-navy" data-change>パスコードを変更</button><button class="btn btn-danger" data-off>パスコードをオフにする</button></div>`,
   s => {
     $('[data-change]', s).onclick = () => verifyPinSheet('今のパスコード', () => setPinFlow(pin => { P.pin = pin; saveProfile(); render(); toast('パスコードを変更しました'); }));
-    $('[data-off]', s).onclick = () => verifyPinSheet('今のパスコード', () => { P.pin = null; saveProfile(); render(); toast('パスコードをオフにしました'); });
+    $('[data-off]', s).onclick = () => verifyPinSheet('今のパスコード', () => { P.pin = null; delete P.fid; saveProfile(); render(); toast('パスコードをオフにしました'); });
+  });
+}
+
+/* ---------- Face ID（パスキーを使った端末内の顔認証） ---------- */
+const bioSupported = !!(window.PublicKeyCredential && navigator.credentials?.create);
+async function bioRegister() {
+  const cred = await navigator.credentials.create({ publicKey: {
+    rp: { name: 'ZUBO', id: location.hostname },
+    user: { id: randBytes(16), name: P.name, displayName: P.name },
+    challenge: randBytes(32),
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
+    timeout: 60000,
+  } });
+  return b64u(new Uint8Array(cred.rawId));
+}
+let bioBusy = false;
+async function bioVerify(p) {
+  if (!p.fid || bioBusy) return false;
+  bioBusy = true;
+  try {
+    const r = await navigator.credentials.get({ publicKey: {
+      challenge: randBytes(32), rpId: location.hostname, userVerification: 'required', timeout: 60000,
+      allowCredentials: [{ type: 'public-key', id: unb64u(p.fid), transports: ['internal'] }],
+    } });
+    return !!r;
+  } catch { return false; } finally { bioBusy = false; }
+}
+function openFaceIdSettings() {
+  if (P.fid) {
+    confirmSheet({ title: 'Face IDをオフにしますか？', ok: 'オフにする', danger: true, body: '開くときはパスコードを使います。',
+      onOk: () => { delete P.fid; saveProfile(); render(); toast('Face IDをオフにしました'); } });
+    return;
+  }
+  openSheet(`<h3>Face IDで開く</h3><p class="lead">パスコードの代わりに、顔でアプリを開けるようにします。顔のデータはiPhoneの中だけで使われ、アプリには保存されません。</p>
+    <div class="stack"><button class="btn btn-primary" data-on>Face IDをオンにする</button><button class="btn btn-text" data-cancel>やめる</button></div>`,
+  s => {
+    $('[data-cancel]', s).onclick = closeSheet;
+    $('[data-on]', s).onclick = async () => {
+      try { P.fid = await bioRegister(); saveProfile(); closeSheet(); render(); toast('Face IDをオンにしました'); }
+      catch { toast('Face IDを設定できませんでした'); }
+    };
   });
 }
 
@@ -1337,7 +1382,8 @@ function showLock(p) {
   const many = getProfiles().length > 1;
   fullScreen(`<div class="screen">
     <div class="hero"><div class="avatar" style="width:68px;height:68px;font-size:28px;margin:0 auto 12px">${esc([...p.name][0] || '?')}</div><h1 style="font-size:24px">${esc(p.name)}</h1></div>
-    ${pinPadHTML('パスコードを入力')}
+    ${p.fid && bioSupported ? `<div style="text-align:center;margin:-6px 0 14px"><button class="btn btn-primary bio-btn" data-bio>${glyph('face', 1.8)}Face IDで開く</button></div>` : ''}
+    ${pinPadHTML(p.fid && bioSupported ? 'またはパスコード' : 'パスコードを入力')}
     <div style="text-align:center;margin-top:20px">
       ${many ? '<button class="btn-text" data-switch>アカウントを切り替え</button>' : ''}
       <button class="btn-text" data-forgot>パスコードを忘れた</button>
@@ -1349,6 +1395,12 @@ function showLock(p) {
     return false;
   });
   $('[data-switch]', app)?.addEventListener('click', showPicker);
+  const bioBtn = $('[data-bio]', app);
+  if (bioBtn) {
+    const tryBio = async () => { if (await bioVerify(p)) openProfile(p); };
+    bioBtn.onclick = tryBio;
+    tryBio();
+  }
   $('[data-forgot]', app).onclick = () => openSheet(`<h3>パスコードを忘れたとき</h3>
     <p class="lead">データはこのスマホの中だけにあるので、パスコードを元に戻す方法はありません。<br>どうしても思い出せないときは、データを消して最初からやり直せます。</p>
     <div class="stack"><button class="btn btn-danger" data-reset>${esc(p.name)}のデータを消してやり直す</button><button class="btn btn-text" data-cancel>もう少し思い出してみる</button></div>`,

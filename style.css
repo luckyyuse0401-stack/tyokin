@@ -671,3 +671,5 @@ select.field { appearance: none; -webkit-appearance: none; background: #fff url(
 .scan-text b { display: block; font-size: 18px; }
 .scan-text span { font-size: 13px; color: #bbb; }
 .scan-cancel { position: relative; margin-top: 36px; background: #fff; color: var(--ink); border-radius: 999px; padding: 14px 34px; font-weight: 800; }
+.bio-btn { width: auto; padding: 0 26px; display: inline-flex; gap: 10px; }
+.bio-btn .gl { width: 22px; height: 22px; }
