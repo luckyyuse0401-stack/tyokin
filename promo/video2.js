@@ -1,0 +1,34 @@
+const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { setup, cap, tap, capNow } = require('./common.js');
+(async () => {
+  const b = await chromium.launch();
+  const T0 = Date.now();
+  const { ctx, p } = await setup(b, { recordVideo: { dir: __dirname + '/raw2', size: { width: 1080, height: 1920 } } });
+  await p.addStyleTag({ content: `.h.big{font-size:118px;line-height:1.1}.cap{transition:opacity .2s,transform .2s}` });
+  await p.evaluate(() => document.fonts.ready);
+  await capNow(p, `<div class="h big">家計簿、<br>3日で<em>消した</em>人？</div>`);
+  await p.waitForTimeout(300);
+  const start = (Date.now() - T0) / 1000;
+  // 0秒目から手が動く：いきなり記録して見せる
+  await tap(p, '[data-act="pad-hi"][data-n="2"]', { wait: 250 });
+  await tap(p, '[data-act="pad-lo"][data-n="5"]', { wait: 250 });
+  await tap(p, '[data-act="pad-cat"][data-cat="conv"]', { wait: 500 });
+  await cap(p, `<div class="h big">これ<em>2タップ</em>で<br>記録おわり</div>`);
+  await p.waitForTimeout(400);
+  await tap(p, '[data-act="pad-hi"][data-n="1"]', { wait: 300 });
+  await tap(p, '[data-act="pad-lo"][data-n="8"]', { wait: 300 });
+  await tap(p, '[data-act="pad-cat"][data-cat="cafe"]', { wait: 700 });
+  await cap(p, `<div class="kick">クレカ派も</div><div class="h">引き落とし日が<br><em>ひと目で</em>わかる</div>`);
+  await tap(p, '#tabbar [data-view="calendar"]', { wait: 700 });
+  await tap(p, '[data-act="day"][data-date="2026-10-27"]', { wait: 1500 });
+  await cap(p, `<div class="kick">しかも</div><div class="h">いつ<em>いくら</em>貯まるか<br>勝手に計算</div>`);
+  await tap(p, '#tabbar [data-view="future"]', { wait: 900 });
+  await tap(p, 'rect[data-act="fut-month"][data-ym="2027-01"]', { wait: 700 });
+  await tap(p, 'rect[data-act="fut-month"][data-ym="2027-04"]', { wait: 1200 });
+  await p.evaluate(() => { const e = document.getElementById('end'); e.innerHTML = '<div class="w">ZUBO<i></i></div><p>ズボラのための、お金の手帳</p><div class="cta">これ、使ってみたい？<br>コメントで教えて</div>'; e.classList.add('on'); });
+  await p.waitForTimeout(2800);
+  const end = (Date.now() - T0) / 1000;
+  const v = p.video(); await ctx.close(); await b.close();
+  require('fs').writeFileSync(__dirname + '/times2.json', JSON.stringify({ start, end, path: await v.path() }));
+  console.log(start, end);
+})();
