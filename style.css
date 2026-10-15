@@ -533,6 +533,27 @@ select.field { appearance: none; -webkit-appearance: none; background: #fff url(
 .ill svg { width: 40px; height: 40px; }
 .pad-foot button { border-radius: 999px; border: 2px solid var(--card2); font-weight: 700; color: var(--ink); background: #fff; }
 .pad-foot button:last-child { background: var(--ink); border-color: var(--ink); color: #fff; box-shadow: 0 3px 0 #000; }
+.pad-top .pad-amt { font-size: 36px; }
+.pad-sub { min-height: 16px; font-size: 11px; }
+/* よく使う金額（ワンタップ）＋テンキー */
+.pad-quick { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 8px; }
+.pad-quick button { height: 38px; border-radius: 999px; border: 2px solid var(--card2); background: #fff; font-weight: 800; font-size: 14px; color: var(--ink); padding: 0; font-variant-numeric: tabular-nums; }
+.pad-quick button.on { background: var(--lime); border-color: var(--lime); box-shadow: 0 3px 0 var(--lime-dark); }
+.pad-quick button:active { transform: scale(.94); }
+.pad-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+.pad-keys button { height: 42px; border: 0; border-radius: 16px; background: var(--card2); font-weight: 800; font-size: 22px; color: var(--ink); }
+.pad-keys button.fn { background: #fff; border: 2px solid var(--card2); font-size: 18px; color: var(--muted); }
+.pad-keys button:active { transform: scale(.95); background: var(--line); }
+.pad-hint { display: inline-flex; align-items: center; background: var(--card2); color: var(--muted); font-weight: 800; font-size: 12px; border-radius: 999px; padding: 5px 12px; margin: 12px 0 8px; }
+.pad-hint.on { background: var(--lime); color: var(--ink); }
+.pad .pad-cats { grid-template-columns: repeat(6, 1fr); gap: 8px 2px; }
+.pad .pad-cats button { font-size: 10.5px; gap: 4px; white-space: nowrap; }
+.pad .pad-cats .ill { width: 46px; height: 46px; border-radius: 15px; }
+.pad .pad-cats .ill svg { width: 32px; height: 32px; }
+.qs-list { display: grid; gap: 4px; margin: 10px 0 6px; }
+.qs-field { margin-top: 0; padding: 6px 2px 4px; }
+.qs-field span { font-size: 16px; }
+.qs-field input { font-size: 24px; }
 
 /* ボタン */
 .btn { border-radius: 999px; font-weight: 800; }

@@ -146,10 +146,20 @@ let D = null;          // そのデータ
 let view = 'home';
 let calYM = ymOf(today());
 let selDay = today();
-// 金額パッド（上の段＝千の位、下の段＝百の位。「1万〜」で万＋千に切り替え）
-let padHi = 0, padLo = 0, padBig = false;
-const padAmount = () => padBig ? padHi * 10000 + padLo * 1000 : padHi * 1000 + padLo * 100;
-const padReset = () => { padHi = 0; padLo = 0; padBig = false; };
+// 金額パッド（よく使う金額のワンタップ＋テンキー）
+// padFresh = よく使う金額を押した直後。次に数字を押すと打ち直し、⌫なら続きを直せる
+const QUICK_DEFAULT = [500, 1000, 1500, 2000, 3000];
+const PAD_MAX = 7;
+let padStr = '', padFresh = false;
+const padAmount = () => Number(padStr) || 0;
+const padReset = () => { padStr = ''; padFresh = false; };
+function padKey(k) {
+  if (padFresh) { padStr = ''; padFresh = false; }
+  if (!padStr && k.startsWith('0')) return;
+  if (padStr.length + k.length > PAD_MAX) return;
+  padStr += k;
+}
+function padBack() { padFresh = false; padStr = padStr.slice(0, -1); }
 let processedOn = '';
 let hiddenAt = 0;
 let showBal = false;   // 残高は開くたびに隠した状態から
@@ -167,6 +177,7 @@ function normalize(d) {
   d.base = Number(d.base) || 0;
   d.tx = Array.isArray(d.tx) ? d.tx.filter(x => x && x.date && x.kind) : [];
   d.rec = Array.isArray(d.rec) ? d.rec.filter(r => r && r.id) : [];
+  d.quick = Array.isArray(d.quick) && d.quick.length === QUICK_DEFAULT.length && d.quick.every(v => Number(v) > 0) ? d.quick.map(Number) : QUICK_DEFAULT.slice();
   for (const x of d.tx) { if (!x.id) x.id = uid(); x.amount = Number(x.amount) || 0; }
   for (const r of d.rec) { r.skip = Array.isArray(r.skip) ? r.skip : []; r.amount = Number(r.amount) || 0; r.day = Math.min(31, Math.max(1, Number(r.day) || 1)); }
   return d;
@@ -360,28 +371,23 @@ function viewHome() {
   <div class="list">${recent.length ? recent.map(x => txRow(x)).join('') : '<div class="empty">まだ記録がありません。<br>上のボタンで金額を選んで、なにに使ったかをタップすると登録できます。</div>'}</div>`;
 }
 
-// 2タップ入力：上の段（千の位）＋下の段（百の位）→ カテゴリをタップで登録
+// 入力：よく使う金額をワンタップ or テンキー → カテゴリをタップで登録
 function padHTML() {
   const amt = padAmount();
-  const hiUnit = padBig ? '万' : '千', loLabel = n => padBig ? `${n}千` : `${n}00`;
-  const parts = [padHi ? `${padHi}${hiUnit}` : '', padLo ? loLabel(padLo) : ''].filter(Boolean).join(' ＋ ');
-  const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const sub = !amt ? 'よく使う金額をタップ、または数字を入力' : padFresh ? '数字で打ち直し・⌫で直せます' : '';
+  const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0'];
   return `<section class="pad">
     <div class="pad-top">
       <div>
         <div class="pad-q">いくら使った？</div>
-        <div class="pad-amt num ${amt ? '' : 'empty'}">${amt ? `¥${amt.toLocaleString('ja-JP')}` : '¥0'}</div>
-        <div class="pad-sub">${parts || (padBig ? '1万円以上モード' : '2つの段から1つずつ選んでね')}</div>
+        <div class="pad-amt num ${amt ? '' : 'empty'}">¥${amt.toLocaleString('ja-JP')}</div>
+        <div class="pad-sub">${sub}</div>
       </div>
       ${amt ? `<button class="pad-clear" data-act="pad-clear" aria-label="クリア">${glyph('x')}</button>` : ''}
     </div>
-    <div class="pad-label">${padBig ? '万円' : '千円'}</div>
-    <div class="pad-row">${nums.map(n => `<button class="pk hi ${padHi === n ? 'on' : ''}" data-act="pad-hi" data-n="${n}">${n}<small>${hiUnit}</small></button>`).join('')}
-      <button class="pk mode" data-act="pad-big">${padBig ? '〜9,900' : '1万〜'}</button></div>
-    <div class="pad-label">${padBig ? '千円' : '百円'}</div>
-    <div class="pad-row">${nums.map(n => `<button class="pk lo ${padLo === n ? 'on' : ''}" data-act="pad-lo" data-n="${n}">${padBig ? `${n}<small>千</small>` : `${n}00`}</button>`).join('')}
-      <button class="pk mode" data-act="pad-exact">ぴったり</button></div>
-    <div class="pad-label">なにに使った？ <em>${amt ? 'タップで登録' : ''}</em></div>
+    <div class="pad-quick">${D.quick.map(v => `<button class="${padFresh && amt === v ? 'on' : ''}" data-act="pad-quick" data-v="${v}">${v.toLocaleString('ja-JP')}</button>`).join('')}</div>
+    <div class="pad-keys">${keys.map(k => `<button data-act="pad-key" data-k="${k}">${k}</button>`).join('')}<button class="fn" data-act="pad-back" aria-label="1文字消す">⌫</button></div>
+    <div class="pad-hint ${amt ? 'on' : ''}">↓ なにに使った？${amt ? ' タップで登録' : ''}</div>
     <div class="pad-cats ${amt ? '' : 'off'}">${CATS.expense.map(c => `<button data-act="pad-cat" data-cat="${c.id}" ${amt ? '' : 'disabled'}>${catArt(c)}${c.label}</button>`).join('')}</div>
     <div class="pad-foot ${amt ? '' : 'off'}">
       <button data-act="pad-memo" ${amt ? '' : 'disabled'}>メモを付けて登録</button>
@@ -747,6 +753,7 @@ function viewSettings() {
 
   <div class="menu" style="margin-top:14px">
     <button data-act="adjust"><div class="l"><b>残高を合わせる</b><small>入れ忘れでズレたら、本当の残高を入れるだけ</small></div><span class="chev">›</span></button>
+    <button data-act="quick-set"><div class="l"><b>よく使う金額</b><small>${D.quick.map(v => v.toLocaleString('ja-JP')).join(' · ')}</small></div><span class="chev">›</span></button>
     <button data-act="guide"><div class="l"><b>使い方ガイド</b><small>入れ方・カード・予測の見方など</small></div><span class="chev">›</span></button>
   </div>
 
@@ -832,14 +839,13 @@ app.addEventListener('click', e => {
   const a = el.dataset.act;
   const ds_ = el.dataset;
   switch (a) {
-    case 'pad-hi': { const n = Number(ds_.n); padHi = padHi === n ? 0 : n; render(); break; }
-    case 'pad-lo': { const n = Number(ds_.n); padLo = padLo === n ? 0 : n; render(); break; }
-    case 'pad-big': padBig = !padBig; padHi = 0; padLo = 0; render(); break;
+    case 'pad-quick': padStr = String(Number(ds_.v)); padFresh = true; render(); break;
+    case 'pad-key': padKey(ds_.k); render(); break;
+    case 'pad-back': padBack(); render(); break;
     case 'pad-clear': padReset(); render(); break;
     case 'pad-cat': padCommit(ds_.cat); break;
     case 'pad-plain': padCommit(null); break;
     case 'pad-memo': { const amount = padAmount(); padReset(); render(); openEntry({ kind: 'expense', amount, quick: true }); break; }
-    case 'pad-exact': openEntry({ kind: 'expense' }); break;
     case 'add': openEntry({ kind: ds_.kind, date: ds_.date }); break;
     case 'tx': openEntry({ id: ds_.id }); break;
     case 'occ': openOccurrence(ds_.rec, ds_.ym); break;
@@ -857,6 +863,7 @@ app.addEventListener('click', e => {
     case 'fut-month': futSel = ds_.ym; render(); break;
     case 'goal': openGoal(); break;
     case 'adjust': openAdjust(); break;
+    case 'quick-set': openQuickSet(); break;
     case 'guide': openGuide(); break;
     case 'rec-add': openRec(); break;
     case 'rec': openRec(ds_.id); break;
@@ -1079,14 +1086,33 @@ function openAdjust() {
   });
 }
 
+function openQuickSet() {
+  const field = (v, i) => `<div class="amount-field qs-field"><span>¥</span><input class="num" inputmode="numeric" value="${v.toLocaleString('ja-JP')}" data-q="${i}" aria-label="よく使う金額${i + 1}"></div>`;
+  openSheet(`<h3>よく使う金額</h3>
+    <p class="lead">ホームでワンタップで入れられる金額です。よく払う金額にしておくと楽になります。</p>
+    <div class="qs-list">${D.quick.map(field).join('')}</div>
+    <div class="stack"><button class="btn btn-primary" data-save>保存する</button><button class="btn btn-ghost" data-reset>最初の金額に戻す</button></div>`,
+  s => {
+    const inputs = [...s.querySelectorAll('[data-q]')];
+    $('[data-reset]', s).onclick = () => QUICK_DEFAULT.forEach((v, i) => { inputs[i].value = v; });
+    $('[data-save]', s).onclick = () => {
+      const vals = inputs.map(i => toInt(i.value));
+      const bad = inputs.find((inp, i) => !(vals[i] > 0 && vals[i] < 10 ** PAD_MAX));
+      if (bad) { shake(bad.parentElement); bad.focus(); return; }
+      D.quick = vals.sort((a, b) => a - b);
+      padReset(); save(); closeSheet(); render();
+      toast('よく使う金額を変えました');
+    };
+  });
+}
+
 /* ---------- 使い方ガイド ---------- */
 const GUIDE = [
   ['', 'ZUBOってどんなアプリ？', `<p>「いま使えるお金」がひと目でわかる、ズボラ向けの残高管理アプリです。細かい家計簿はつけなくてOK。<b>使ったらタップ</b>、それだけです。</p>`],
-  ['', '支出の入れ方（いちばん大事）', `<p>ホームの「いくら使った？」で、<b>千円の段と百円の段から1つずつ</b>タップします。</p>
-    <ul><li>2,500円 → <b>2千</b> → <b>500</b></li><li>600円 → <b>600</b> だけ</li><li>3千円ちょうど → <b>3千</b> だけ</li></ul>
-    <p>最後に「なにに使った？」の「ごはん」「コンビニ」などをタップすると登録完了。選ぶのが面倒なら「そのまま登録」でOK。</p>
-    <p>押しまちがえたら、もう一度押すと選択が外れます（右上の×で全部消せます）。登録したあとでも、下に出る「取り消す」で戻せます。</p>`],
-  ['', '1万円以上・端数まで入れたいとき', `<ul><li><b>1万〜</b> を押すと「万円」と「千円」の段に切り替わります（25,000円 → 2万 → 5千）</li><li>1,280円のように端数まで入れたいときは <b>ぴったり</b> から数字を打てます</li><li>だいたいでOK。数十円のズレは「残高を合わせる」でまとめて直せます</li></ul>`],
+  ['', '支出の入れ方（いちばん大事）', `<p>ホームの「いくら使った？」で金額を入れて、「なにに使った？」の「ごはん」「コンビニ」などをタップすると登録完了。選ぶのが面倒なら「そのまま登録」でOK。</p>
+    <ul><li>1,000円 → よく使う金額の <b>1,000</b> をタップ</li><li>1,280円 → テンキーで <b>1・2・8・0</b></li><li>12,000円 → <b>1・2・00・0</b></li></ul>
+    <p>押しまちがえたら <b>⌫</b> で1文字消せます（右上の×で全部消せます）。登録したあとでも、下に出る「取り消す」で戻せます。</p>`],
+  ['', 'よく使う金額・だいたいでOK', `<ul><li>よく使う金額を押したあとに数字を押すと、<b>打ち直し</b>になります。1,500 を押してから ⌫⌫ → 8・0 で 1,580 のように直すこともできます</li><li>ボタンの金額は 設定 →「よく使う金額」で自分用に変えられます</li><li>だいたいでOK。1,320円を「1,500」で入れても、ズレは「残高を合わせる」でまとめて直せます</li></ul>`],
   ['', '昨日の分・過去の分を入れる', `<p>ホームの「昨日以前の支出」か、カレンダーで日付をタップして「＋支出」から入れられます。</p>`],
   ['', 'クレジットカードの使い方', `<p>カードで買ったものは<b>その都度入れなくてOK</b>です。お金が減るのは引き落とし日なので、その日の金額だけ入れます。</p>
     <ol><li>設定 →「毎月の給料・引き落とし」でカードを追加（例：楽天カード・27日・金額は空欄）</li><li>カレンダーの<b style="color:var(--red)">赤丸</b>の日をタップして、明細の金額を入れる</li><li>その日になると自動で残高から引かれます</li></ol>
