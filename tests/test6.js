@@ -1,0 +1,26 @@
+const { chromium, devices } = require('/opt/node-tools/node_modules/playwright');
+(async () => {
+  const b = await chromium.launch();
+  const p = await (await (async () => { const c = await b.newContext({ ...devices['iPhone 13'], ignoreHTTPSErrors: true }); await require('./fontroute.js')(c); return c; })()).newPage();
+  p.on('pageerror', e => console.log('ERR', e.message));
+  await p.goto('http://localhost:8765/');
+  await p.evaluate(() => localStorage.setItem('nokori:hideInstallTip', 'true'));
+  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '100000'); await p.click('[data-start]'); await p.waitForTimeout(400); await p.click('.sheet [data-later]');
+  await p.click('[data-act="pad-quick"][data-v="1000"]'); await p.click('[data-act="pad-plain"]');
+  await p.click('#tabbar [data-view="settings"]');
+  await p.waitForTimeout(5200);
+  await p.screenshot({ path: process.argv[2] + '/g0.png' });
+  await p.click('.menu [data-act="adjust"]');
+  await p.fill('.sheet [data-v]', '95500'); await p.waitForTimeout(500);
+  await p.screenshot({ path: process.argv[2] + '/g1.png' });
+  await p.click('.sheet [data-save]');
+  console.log(await p.evaluate(() => [balance(), monthStats(ymOf(today())).spent, JSON.stringify(D.tx.at(-1))]));
+  await p.click('#tabbar [data-view="home"]');
+  await p.waitForTimeout(5200);
+  await p.screenshot({ path: process.argv[2] + '/g3.png', fullPage: true });
+  await p.click('#tabbar [data-view="settings"]');
+  await p.click('[data-act="guide"]');
+  await p.waitForTimeout(400);
+  await p.screenshot({ path: process.argv[2] + '/g2.png' });
+  await b.close();
+})();

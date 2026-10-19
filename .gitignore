@@ -1,0 +1,12 @@
+# 宣伝素材・テストの出力（スクリプトで作り直せるもの）
+promo/cm/
+promo/lv/
+promo/raw*/
+promo/_*.html
+promo/*.mp4
+promo/*.gif
+promo/*.png
+promo/*.json
+tests/out*/
+tests/o*/
+node_modules/

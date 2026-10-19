@@ -1,0 +1,27 @@
+const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { setup } = require('./common.js');
+const STAGE = `<!doctype html><html><head><style>*{margin:0}html,body{width:390px;height:844px;overflow:hidden}iframe{width:390px;height:844px;border:0;display:block}</style></head><body><iframe id="f" src="/"></iframe></body></html>`;
+(async () => {
+  const b = await chromium.launch();
+  const { p } = await setup(b, { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3 }, STAGE);
+  await p.evaluate(() => { const ps = JSON.parse(localStorage.getItem('nokori:profiles')); ps[0].name = 'わたし'; localStorage.setItem('nokori:profiles', JSON.stringify(ps)); localStorage.setItem('nokori:hideInstallTip', 'true'); document.getElementById('f').contentWindow.location.reload(); });
+  await p.waitForTimeout(1500);
+  const fr = () => p.frames().find(x => x !== p.mainFrame());
+  await fr().evaluate(() => { Object.defineProperty(navigator, 'standalone', { get: () => true }); showBal = true; render(false); });
+  await fr().addStyleTag({ content: '#app{padding-top:54px!important}' });
+  await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(500);
+  const pos = {};
+  const box = async (k, s) => { pos[k] = await fr().$eval(s, e => { const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }); };
+  const c = async (s, w = 500) => { await fr().$eval(s, e => e.dispatchEvent(new MouseEvent('click', { bubbles: true }))); await p.waitForTimeout(w); };
+  await p.screenshot({ path: __dirname + '/cm/a.png' });
+  await box('q', '[data-act="pad-quick"][data-v="1500"]');
+  await c('[data-act="pad-quick"][data-v="1500"]'); await p.screenshot({ path: __dirname + '/cm/b.png' });
+  await box('f', '[data-act="pad-cat"][data-cat="food"]');
+  await c('[data-act="pad-cat"][data-cat="food"]', 700); await p.screenshot({ path: __dirname + '/cm/c.png' }); await fr().evaluate(() => { document.getElementById('toast-root').innerHTML = ''; });
+  await c('#tabbar [data-view="calendar"]', 600); await c('[data-act="day"][data-date="2026-10-27"]', 800);
+  await fr().evaluate(() => scrollTo(0, 330)); await p.waitForTimeout(400); await p.screenshot({ path: __dirname + '/cm/d.png' });
+  await c('#tabbar [data-view="future"]', 600); await c('rect[data-act="fut-month"][data-ym="2027-04"]', 800);
+  await fr().evaluate(() => scrollTo(0, 0)); await p.waitForTimeout(400); await p.screenshot({ path: __dirname + '/cm/e.png' });
+  require('fs').writeFileSync(__dirname + '/cm/pos.json', JSON.stringify(pos));
+  await b.close();
+})();

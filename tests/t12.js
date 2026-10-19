@@ -1,0 +1,61 @@
+// 毎月かかるお金・今月のまとめ のテスト
+const { chromium, devices } = require('/opt/node-tools/node_modules/playwright');
+const ok = (c, m) => { console.log((c ? 'OK  ' : 'NG  ') + m); if (!c) process.exitCode = 1; };
+(async () => {
+  const b = await chromium.launch();
+  const c = await b.newContext({ ...devices['iPhone 13'], viewport: { width: 390, height: 844 } }); await require('./fontroute.js')(c);
+  await c.addInitScript(() => Object.defineProperty(navigator, 'standalone', { get: () => true }));
+  const p = await c.newPage(); const D = f => p.evaluate(f);
+  p.on('pageerror', e => ok(false, 'pageerror ' + e.message));
+  await p.goto('http://localhost:8765/');
+  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '200000'); await p.click('[data-start]'); await p.waitForTimeout(500);
+  ok(await p.$eval('.sheet h3', e => e.textContent) === '毎月かかるお金は？', 'はじめたあとに「毎月かかるお金」が出る');
+  const fr = n => `.sheet .fr[data-f="${n}"]`;
+  await p.click(fr(0) + ' [data-tg]'); await p.fill(fr(0) + ' [data-a]', '72,000'); await p.fill(fr(0) + ' [data-d]', '27');
+  await p.click(fr(1) + ' [data-tg]');
+  await p.click(fr(4) + ' [data-tg]'); await p.fill(fr(4) + ' [data-a]', '3280'); await p.fill(fr(4) + ' [data-d]', '26');
+  await p.screenshot({ path: process.argv[2] + '/f0.png' });
+  await p.click('.sheet [data-save]');
+  ok(!!(await p.$('.sheet')), '日にち未入力（電気）だと保存できない');
+  await p.fill(fr(1) + ' [data-d]', '26'); await p.click('.sheet [data-save]'); await p.waitForTimeout(300);
+  ok(!(await p.$('.sheet')), '保存で閉じる');
+  ok(await D(() => D.rec.map(r => `${r.name}:${r.amount}:${r.day}:${r.icon}`).join(',')) === '家賃:72000:27:house,電気:0:26:bolt,スマホ:3280:26:phone', '3つ登録 ' + await D(() => D.rec.map(r => `${r.name}:${r.amount}:${r.day}`).join(',')));
+  // 設定から開き直すと状態が残っている・外すと消える
+  await p.click('#tabbar [data-view="settings"]'); await p.click('[data-act="fixed-set"]');
+  ok(await p.$$eval('.sheet .fr.on', e => e.length) === 3, '設定から開くとチェック済み3つ');
+  ok(await p.$eval(fr(0) + ' [data-a]', e => e.value) === '72000', '金額も残っている');
+  ok(!(await p.$('.sheet [data-later]')), '設定からは「あとで」がない');
+  await p.click(fr(4) + ' [data-tg]'); await p.click('.sheet [data-save]'); await p.waitForTimeout(300);
+  ok(await D(() => D.rec.map(r => r.name).join(',')) === '家賃,電気', 'チェックを外すと消える');
+  // 支出を入れて今月のまとめ
+  await p.click('#tabbar [data-view="home"]');
+  const add = async (ks, cat) => { for (const k of ks) await p.click(`[data-act="pad-key"][data-k="${k}"]`); await p.click(`[data-act="pad-cat"][data-cat="${cat}"]`); };
+  await add(['1', '2', '00'], 'food'); await add(['6', '00'], 'food'); await add(['4', '8', '0'], 'conv'); await add(['3', '000'.slice(0, 2), '0'], 'shop');
+  await p.click('#tabbar [data-view="calendar"]');
+  ok(!!(await p.$('.days')), 'カレンダーが最初に出る');
+  await p.click('[data-act="cal-mode"][data-m="sum"]'); await p.waitForTimeout(200);
+  const names = await p.$$eval('.cr .nm', e => e.map(x => x.childNodes[0].textContent.trim()).join(','));
+  ok(names === '買い物,ごはん,コンビニ', 'カテゴリが多い順 ' + names);
+  ok(await p.$eval('.mt .v', e => e.textContent) === '¥5,280', '合計 ' + await p.$eval('.mt .v', e => e.textContent));
+  ok(await p.$eval('.cr .nm small', e => e.textContent) === '1回', '回数');
+  await p.click('[data-act="sum-cat"][data-k="food"]');
+  ok(await p.$$eval('.det .item', e => e.length) === 2, 'ごはんを開くと2件');
+  ok(await p.$$eval('.list .item', e => e.map(x => x.textContent).join('|')).then(t => t.includes('家賃') && t.includes('電気')), '毎月の支払いに家賃・電気');
+  await p.screenshot({ path: process.argv[2] + '/s0.png', fullPage: true });
+  await p.click('.det .item'); await p.waitForTimeout(300);
+  ok(!!(await p.$('.sheet')), '中身をタップすると編集が開く');
+  await p.evaluate(() => closeSheet());
+  await p.click('[data-act="month"][data-d="-1"]'); await p.waitForTimeout(200);
+  ok((await p.$eval('.empty', e => e.textContent)).includes('まだ記録がありません'), '先月は空');
+  await p.click('[data-act="month"][data-d="0"]');
+  await p.click('[data-act="cal-mode"][data-m="cal"]'); ok(!!(await p.$('.days')), 'カレンダーに戻せる');
+  ok(await p.$$eval('.d.ring-exp', e => e.length) >= 1, '赤丸がつく');
+  await p.click('#tabbar [data-view="settings"]');
+  await p.screenshot({ path: process.argv[2] + '/st.png' });
+  // あとで
+  const p2 = await c.newPage(); await p2.goto('http://localhost:8765/'); await p2.evaluate(() => { localStorage.clear(); }); await p2.reload();
+  await p2.fill('[data-name]', 'B'); await p2.click('[data-start]'); await p2.waitForTimeout(400);
+  await p2.click('.sheet [data-later]'); await p2.waitForTimeout(200);
+  ok(!(await p2.$('.sheet')) && await p2.evaluate(() => D.rec.length) === 0, '「あとで」で何も登録せず閉じる');
+  await b.close();
+})();

@@ -1,0 +1,20 @@
+const { chromium, devices } = require('/opt/node-tools/node_modules/playwright');
+(async () => {
+  const b = await chromium.launch(); const c = await b.newContext({ ...devices['iPhone 13'] }); await require('./fontroute.js')(c);
+  await c.route(/localhost:8765\/$/, async r => { const res = await r.fetch(); r.fulfill({ response: res, body: (await res.text()).replace('</head>', '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;800;900&display=block"></head>') }); });
+  const p = await c.newPage(); p.on('pageerror', e => console.log('ERR', e.message));
+  const cdp = await c.newCDPSession(p); await cdp.send('WebAuthn.enable');
+  await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
+  await p.goto('http://localhost:8765/');
+  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '1000'); await p.click('[data-pin]'); await p.click('[data-start]');
+  for (const k of '12341234') await p.click(`.sheet .pinpad [data-k="${k}"]`); await p.waitForTimeout(400); await p.click('.sheet [data-later]');
+  await p.waitForTimeout(300);
+  await p.click('#tabbar [data-view="settings"]'); await p.click('[data-act="faceid"]'); await p.click('.sheet [data-on]');
+  await p.waitForTimeout(800);
+  console.log('fid set', await p.evaluate(() => !!P.fid));
+  await cdp.send('WebAuthn.disable'); await p.evaluate(() => showLock(P)); await p.waitForTimeout(800);
+  await p.screenshot({ path: __dirname + '/t8-lock.png' });
+  await p.waitForTimeout(1200);
+  console.log('unlocked', await p.evaluate(() => !!document.querySelector('.zlogo')));
+  await b.close();
+})();
