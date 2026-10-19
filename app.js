@@ -76,6 +76,12 @@ const CATS = {
 };
 /* ---------- アイコン（細い線） ---------- */
 const GLYPH = {
+  house: '<path d="M4 11l8-6.5 8 6.5"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>',
+  bolt: '<path d="M13 3L5 13h6l-1 8 8-10h-6z"/>',
+  flame: '<path d="M12 21a6 6 0 0 0 6-6c0-4-3-6-4-10-2 2-2 4-2 5-1-1-2-2-2-4-2 2-4 5-4 9a6 6 0 0 0 6 6z"/>',
+  drop: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+  wifi: '<path d="M3 9.5a13 13 0 0 1 18 0"/><path d="M6.5 13a8 8 0 0 1 11 0"/><path d="M10 16.5a3 3 0 0 1 4 0"/><circle cx="12" cy="19.5" r=".6"/>',
+  play: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/>',
   food: '<path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M8 7c0-1.5 1-2 1-3.5M12 7c0-1.5 1-2 1-3.5M16 7c0-1.5 1-2 1-3.5"/>',
   conv: '<path d="M4 9l1.5-5h13L20 9"/><path d="M4 9h16v2a2.7 2.7 0 0 1-5.3 0 2.7 2.7 0 0 1-5.4 0A2.7 2.7 0 0 1 4 11z"/><path d="M5 13v7h14v-7"/><path d="M10 20v-4h4v4"/>',
   cafe: '<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M9 3.5c0 1.5-1 1.5-1 3M13 3.5c0 1.5-1 1.5-1 3"/>',
@@ -292,7 +298,7 @@ function txTitle(x) {
 function txIcon(x) {
   if (x.kind === 'adjust') return glyph('pen');
   if (x.adj) return glyph('adj');
-  if (x.rec || x.name) return glyph(x.kind === 'income' ? 'salary' : 'bank');
+  if (x.rec || x.name) return glyph(D.rec.find(r => r.id === x.rec)?.icon || (x.kind === 'income' ? 'salary' : 'bank'));
   const c = catOf(x.kind, x.cat);
   if (c) return glyph(c.icon);
   return x.kind === 'income' ? '+' : '−';
@@ -411,7 +417,64 @@ function padCommit(cat) {
 /* =========================================================
    画面：カレンダー
    ========================================================= */
+function calHead(ym) {
+  return `<div class="mini-balance"><div class="in"><span>現在残高 ${eyeBtn('sm')}</span><b class="num">${balText(balance())}</b></div></div>
+  <div class="month-nav">
+    <button class="icon-btn" data-act="month" data-d="-1" aria-label="前の月">‹</button>
+    <h2 data-act="month" data-d="0">${ymLabel(ym)}</h2>
+    <button class="icon-btn" data-act="month" data-d="1" aria-label="次の月">›</button>
+  </div>
+  <div class="seg cal-seg"><button class="${calMode === 'cal' ? 'on' : ''}" data-act="cal-mode" data-m="cal">カレンダー</button><button class="${calMode === 'sum' ? 'on' : ''}" data-act="cal-mode" data-m="sum">今月のまとめ</button></div>`;
+}
+
+// 今月のまとめ：カテゴリ別にいくら使ったか（引き落とし・毎月の予定は別に出す）
+function monthByCat(ym, upTo) {
+  const o = {};
+  for (const x of D.tx) {
+    if (x.kind !== 'expense' || x.rec || x.plan || ymOf(x.date) !== ym || x.date > upTo) continue;
+    const k = x.adj ? 'adj' : (x.cat || 'other');
+    (o[k] ||= { total: 0, items: [] }).total += x.amount;
+    o[k].items.push(x);
+  }
+  return o;
+}
+function viewMonthSum(ym) {
+  const t = today(), st = monthStats(ym);
+  if (ym > ymOf(t)) return `${calHead(ym)}<div class="empty" style="margin-top:20px">まだ先の月です</div>`;
+  const cur = ymOf(t) === ym;
+  const days = cur ? Number(t.slice(8)) : dim(ym);
+  const by = monthByCat(ym, t);
+  const [py, pm] = ym.split('-').map(Number), pd = new Date(py, pm - 2, 1);
+  const pym = `${pd.getFullYear()}-${pad(pd.getMonth() + 1)}`;
+  // 今月は「先月の同じ日まで」と比べる
+  const prev = monthByCat(pym, cur ? `${pym}-${pad(Math.min(days, dim(pym)))}` : `${pym}-31`);
+  const hasPrev = Object.keys(prev).length > 0;
+  const rows = Object.entries(by).sort((a, b) => b[1].total - a[1].total);
+  const max = rows[0]?.[1].total || 1;
+  const label = k => k === 'adj' ? '入れ忘れ（残高合わせ）' : (catOf('expense', k)?.label || 'その他');
+  const art = k => k === 'adj' ? `<div class="ill">${glyph('adj')}</div>` : catArt(catOf('expense', k) || catOf('expense', 'other'));
+  const list = rows.map(([k, v], i) => {
+    const p = prev[k]?.total || 0;
+    const trend = !hasPrev || i > 2 ? '' : v.total > p * 1.1 ? '<em>↑ 先月より多め</em>' : v.total < p * 0.9 ? '<em class="dn">↓ 先月より少なめ</em>' : '';
+    const open = sumOpen === k;
+    return `<button class="cr ${i === 0 ? 'top' : ''} ${open ? 'open' : ''}" data-act="sum-cat" data-k="${k}">${art(k)}
+      <div><div class="nm">${esc(label(k))}<small>${v.items.length}回</small></div><div class="bar"><i style="width:${Math.max(4, Math.round(v.total / max * 100))}%"></i></div></div>
+      <div class="am num">${yen(v.total)}${trend}</div></button>
+      ${open ? `<div class="det">${sortTx(v.items).map(x => txRow(x)).join('')}</div>` : ''}`;
+  }).join('');
+  const fixedTx = sortTx([...D.tx.filter(x => ymOf(x.date) === ym && x.kind === 'expense' && (x.rec || x.plan)), ...virtuals(ym).filter(v => v.kind === 'expense')], 1);
+  return `${calHead(ym)}
+  <section class="mt">
+    <div class="k">${monthNum(ym)}月に使ったお金（引き落としをのぞく）</div>
+    <div class="v num">${yen(st.spent)}</div>
+    <div class="sub"><span>引き落とし <b class="num">${yen(st.fixed)}</b></span><span>1日あたり <b class="num">${yen(Math.round(st.spent / Math.max(1, days)))}</b></span></div>
+  </section>
+  ${rows.length ? `<div class="cb">${list}</div>` : '<div class="empty" style="margin-top:14px">この月はまだ記録がありません</div>'}
+  ${fixedTx.length ? `<div class="sec-head"><h3>毎月の支払い</h3></div><div class="list">${fixedTx.map(x => txRow(x)).join('')}</div>` : ''}`;
+}
+
 function viewCalendar() {
+  if (calMode === 'sum') return viewMonthSum(calYM);
   const t = today(), ym = calYM, st = monthStats(ym), bal = balance();
   const n = dim(ym), first = parseD(`${ym}-01`).getDay();
   const rings = ringsOf(ym);
@@ -456,12 +519,7 @@ function viewCalendar() {
     monthList += txRow(x, { showDate: false });
   }
 
-  return `<div class="mini-balance"><div class="in"><span>現在残高 ${eyeBtn('sm')}</span><b class="num">${balText(bal)}</b></div></div>
-  <div class="month-nav">
-    <button class="icon-btn" data-act="month" data-d="-1" aria-label="前の月">‹</button>
-    <h2 data-act="month" data-d="0">${ymLabel(ym)}</h2>
-    <button class="icon-btn" data-act="month" data-d="1" aria-label="次の月">›</button>
-  </div>
+  return `${calHead(ym)}
   <div class="sum-card">
     <div class="k">この月の収支</div>
     <div class="v num ${st.net < 0 ? 'neg' : ''}">${sYen(st.net)}</div>
@@ -497,6 +555,7 @@ function viewCalendar() {
    AIは使わず、記録からルールで計算する
    ========================================================= */
 let futSel = null;
+let calMode = 'cal', sumOpen = null; // カレンダータブ：カレンダー / 今月のまとめ
 const lastDay = ym => `${ym}-${pad(dim(ym))}`;
 const daysBetween = (a, b) => Math.round((parseD(b) - parseD(a)) / 86400000);
 const monthsBetween = (a, b) => { const [y1, m1] = a.split('-').map(Number), [y2, m2] = b.split('-').map(Number); return (y2 - y1) * 12 + (m2 - m1); };
@@ -760,10 +819,11 @@ function viewSettings() {
   <div class="sec-head"><h3>毎月の給料・引き落とし</h3></div>
   <div class="menu">
     ${recs.map(r => `<button data-act="rec" data-id="${r.id}">
-      <div class="ico ${r.kind === 'income' ? 'inc' : 'plan'}" style="width:38px;height:38px">${glyph(r.kind === 'income' ? 'salary' : 'bank')}</div>
+      <div class="ico ${r.kind === 'income' ? 'inc' : 'plan'}" style="width:38px;height:38px">${glyph(r.icon || (r.kind === 'income' ? 'salary' : 'bank'))}</div>
       <div class="l"><b>${esc(r.name)}</b><small>毎月${r.day}日${r.day >= 29 ? '（ない月は月末）' : ''}</small></div>
       <div class="r num">${r.amount ? (r.kind === 'income' ? '+' : '−') + yen(r.amount) : '毎月入力'}</div><span class="chev">›</span>
     </button>`).join('')}
+    <button class="add" data-act="fixed-set">＋ 家賃・光熱費などをまとめて選ぶ</button>
     <button class="add" data-act="rec-add">＋ 追加する</button>
   </div>
   <p class="note">カードみたいに毎月金額が変わるものは、金額を空欄にしておくと、カレンダーの<b style="color:var(--red)">赤丸</b>の日をタップしてその月の金額を入れられます。金額が入った予定は、その日になると自動で残高から引かれます。</p>
@@ -839,6 +899,8 @@ app.addEventListener('click', e => {
   const a = el.dataset.act;
   const ds_ = el.dataset;
   switch (a) {
+    case 'cal-mode': calMode = ds_.m; sumOpen = null; render(); break;
+    case 'sum-cat': sumOpen = sumOpen === ds_.k ? null : ds_.k; render(); break;
     case 'pad-quick': padStr = String(Number(ds_.v)); padFresh = true; render(); break;
     case 'pad-key': padKey(ds_.k); render(); break;
     case 'pad-back': padBack(); render(); break;
@@ -854,7 +916,7 @@ app.addEventListener('click', e => {
     case 'hide-tip': store.set('hideInstallTip', true); render(); break;
     case 'month': {
       const d = Number(ds_.d);
-      calYM = d === 0 ? ymOf(today()) : addMonths(calYM, d);
+      calYM = d === 0 ? ymOf(today()) : addMonths(calYM, d); sumOpen = null;
       selDay = calYM === ymOf(today()) ? today() : `${calYM}-01`;
       render(false);
       break;
@@ -866,6 +928,7 @@ app.addEventListener('click', e => {
     case 'quick-set': openQuickSet(); break;
     case 'guide': openGuide(); break;
     case 'rec-add': openRec(); break;
+    case 'fixed-set': openFixed(); break;
     case 'rec': openRec(ds_.id); break;
     case 'rename': openRename(); break;
     case 'pin': openPinSettings(); break;
@@ -1113,6 +1176,8 @@ const GUIDE = [
     <ul><li>1,000円 → よく使う金額の <b>1,000</b> をタップ</li><li>1,280円 → テンキーで <b>1・2・8・0</b></li><li>12,000円 → <b>1・2・00・0</b></li></ul>
     <p>押しまちがえたら <b>⌫</b> で1文字消せます（右上の×で全部消せます）。登録したあとでも、下に出る「取り消す」で戻せます。</p>`],
   ['', 'よく使う金額・だいたいでOK', `<ul><li>よく使う金額を押したあとに数字を押すと、<b>打ち直し</b>になります。1,500 を押してから ⌫⌫ → 8・0 で 1,580 のように直すこともできます</li><li>ボタンの金額は 設定 →「よく使う金額」で自分用に変えられます</li><li>だいたいでOK。1,320円を「1,500」で入れても、ズレは「残高を合わせる」でまとめて直せます</li></ul>`],
+  ['', '何にいくら使ったか見る', `<p>カレンダーのタブで「今月のまとめ」に切り替えると、カテゴリごとにいくら使ったかが多い順に出ます。カテゴリをタップすると、いつ・いくら使ったかの一覧が開きます。</p>`],
+  ['', '家賃・光熱費などを登録する', `<p>設定 →「家賃・光熱費などをまとめて選ぶ」で、チェックして金額と引き落とし日を入れるだけ。電気やガスのように毎月変わるものは、金額を空欄にしておくと、カレンダーの赤丸からその月の金額を入れられます。</p>`],
   ['', '昨日の分・過去の分を入れる', `<p>ホームの「昨日以前の支出」か、カレンダーで日付をタップして「＋支出」から入れられます。</p>`],
   ['', 'クレジットカードの使い方', `<p>カードで買ったものは<b>その都度入れなくてOK</b>です。お金が減るのは引き落とし日なので、その日の金額だけ入れます。</p>
     <ol><li>設定 →「毎月の給料・引き落とし」でカードを追加（例：楽天カード・27日・金額は空欄）</li><li>カレンダーの<b style="color:var(--red)">赤丸</b>の日をタップして、明細の金額を入れる</li><li>その日になると自動で残高から引かれます</li></ol>
@@ -1175,6 +1240,58 @@ function openRec(id) {
       body: 'これまでに記録された分はそのまま残ります。これからの予定は消えます。',
       onOk: () => { D.rec = D.rec.filter(x => x !== r); D.tx = D.tx.filter(x => !(x.rec === r.id && x.date > today())); save(); render(); toast('削除しました'); },
     }));
+  });
+}
+
+// 毎月かかるお金（一人暮らしの固定費）をチェックでまとめて登録
+const FIXED = [
+  { name: '家賃', icon: 'house' }, { name: '電気', icon: 'bolt' }, { name: 'ガス', icon: 'flame' }, { name: '水道', icon: 'drop' },
+  { name: 'スマホ', icon: 'phone' }, { name: 'ネット', icon: 'wifi' }, { name: 'サブスク', icon: 'play' }, { name: '奨学金', icon: 'book' },
+];
+const WELCOME_MSG = 'ようこそ！金額をタップすると支出を登録できます';
+function openFixed(first = false) {
+  const find = n => D.rec.find(r => r.kind === 'expense' && r.name === n);
+  const row = (f, i) => {
+    const r = find(f.name);
+    return `<div class="fr ${r ? 'on' : ''}" data-f="${i}">
+      <button class="h" data-tg><span class="ck">✓</span>${glyph(f.icon)}${f.name}<small>${r ? '' : 'タップで追加'}</small></button>
+      <div class="in">
+        <label><span>金額</span><input class="num" inputmode="numeric" placeholder="毎月変わる" value="${r?.amount || ''}" data-a></label>
+        <label><span>引き落とし日</span><input class="num" inputmode="numeric" placeholder="何日？" value="${r?.day || ''}" data-d></label>
+      </div></div>`;
+  };
+  openSheet(`<h3>毎月かかるお金は？</h3>
+    <p class="lead">チェックして、金額と引き落とし日を入れるだけ。電気やガスみたいに<b>毎月変わるものは金額を空欄</b>でOK。引き落とし日にカレンダーへ赤丸がつきます。</p>
+    <div class="fx">${FIXED.map(row).join('')}</div>
+    <button class="btn-text" data-other>＋ ほかのものを追加</button>
+    <div class="stack"><button class="btn btn-primary" data-save>${first ? 'これではじめる' : '保存'}</button>${first ? '<button class="btn btn-ghost" data-later>あとで</button>' : ''}</div>`,
+  s => {
+    const rows = $$('.fr', s);
+    rows.forEach(el => $('[data-tg]', el).onclick = () => {
+      const on = el.classList.toggle('on');
+      $('small', el).textContent = on ? '' : 'タップで追加';
+      if (on && !$('[data-d]', el).value) $('[data-a]', el).focus();
+    });
+    const done = () => { closeSheet(); if (first) toast(WELCOME_MSG); };
+    $('[data-later]', s)?.addEventListener('click', done);
+    $('[data-other]', s).onclick = () => { closeSheet(); openRec(); };
+    $('[data-save]', s).onclick = () => {
+      for (const el of rows) {
+        if (!el.classList.contains('on')) continue;
+        const day = toInt($('[data-d]', el).value);
+        if (day < 1 || day > 31) { shake($('[data-d]', el).parentElement); $('[data-d]', el).focus(); return; }
+      }
+      rows.forEach(el => {
+        const f = FIXED[Number(el.dataset.f)], r = find(f.name);
+        const on = el.classList.contains('on');
+        const day = toInt($('[data-d]', el).value), amount = toInt($('[data-a]', el).value);
+        if (on && r) Object.assign(r, { day, amount, icon: f.icon });
+        else if (on) D.rec.push({ id: uid(), name: f.name, kind: 'expense', day, amount, start: today(), skip: [], icon: f.icon });
+        else if (r) { D.rec = D.rec.filter(x => x !== r); D.tx = D.tx.filter(x => !(x.rec === r.id && x.date > today())); }
+      });
+      save(); processRecurring(); render(); done();
+      if (!first) toast('保存しました');
+    };
   });
 }
 
@@ -1386,7 +1503,7 @@ function showWelcome() {
       setProfiles([...getProfiles(), p]);
       store.set(`data:${p.id}`, newData(base));
       openProfile(p);
-      toast('ようこそ！金額をタップすると支出を登録できます');
+      openFixed(true);
     };
     if (pinBtn.classList.contains('on')) setPinFlow(pin => create(pin));
     else create(null);
