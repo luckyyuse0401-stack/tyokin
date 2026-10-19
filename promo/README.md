@@ -9,6 +9,7 @@ TikTok（1080×1920）向けの動画・静止画を、本物のアプリを動�
 | `video2.js` | シンプル版（スマホ画面のみ・約14秒） |
 | `stills.js` | 静止画6枚 |
 | `apple_shots.js` → `apple.js` | アップル風15秒（素材の撮影 → 1コマずつ描画）。`node apple_shots.js && node apple.js` のあと `ffmpeg -framerate 30 -i cm/f2/%04d.jpg ...` でmp4に |
+| `apple2_shots.js` → `apple2.js` | アップル風 第2弾（約14秒）：今月のまとめ・毎月かかるお金。最後は「次は、どんな機能が欲しいですか？」。素材とコマは `cm2/` |
 | `kanojo_shots.js` → `kanojo_slides.js` | 彼女目線の写真投稿8枚（`lv/s1〜8.png`） |
 | `kanojo_video.js` | 彼女目線の画面録画風動画 |
 
