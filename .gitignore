@@ -10,3 +10,4 @@ promo/*.json
 tests/out*/
 tests/o*/
 node_modules/
+tests/*.png
