@@ -736,3 +736,35 @@ select.field { appearance: none; -webkit-appearance: none; background: #fff url(
 .fr .in label { background: var(--bg); border-radius: 12px; padding: 6px 10px; display: block; }
 .fr .in label span { display: block; font-size: 10px; color: var(--muted); font-weight: 700; }
 .fr .in input { border: 0; outline: 0; background: none; width: 100%; font-family: inherit; font-weight: 800; font-size: 16px; padding: 0; color: var(--ink); }
+
+/* お金を使わなかった日のスタンプ */
+.cal .d { position: relative; }
+.cal .d .stamp { position: absolute; left: 50%; top: 24px; width: 30px; height: 30px; transform: translateX(-50%) rotate(-8deg); }
+/* アプリの色・スタンプを選ぶ */
+.pick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 14px; }
+.pick-grid button { background: #fff; border: 2px solid var(--card2); border-radius: 18px; padding: 10px 4px 8px; font-weight: 800; font-size: 12px; color: var(--ink); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.pick-grid button.on { border-color: var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.pick-grid button small { font-size: 10px; color: var(--muted); font-weight: 700; }
+.pick-grid .sw { display: flex; gap: 4px; margin-bottom: 2px; }
+.pick-grid .sw i { width: 22px; height: 22px; border-radius: 50%; display: block; }
+.stamp-grid svg { width: 42px; height: 42px; }
+.stamp-grid .nost { width: 42px; height: 42px; border-radius: 50%; border: 2px dashed var(--card2); display: grid; place-items: center; font-size: 11px; color: var(--muted); }
+/* 予算 */
+.cr .bud { font-size: 11px; color: var(--muted); font-weight: 700; margin-top: 4px; display: flex; justify-content: space-between; gap: 6px; }
+.cr .bud b { color: var(--ink); }
+.cr .bud.over, .cr .bud.over b { color: var(--red); }
+.cr .bar.b i { background: var(--lime-dark); }
+.cr .bar.b.near i { background: #E8A33A; }
+.cr .bar.b.over i { background: var(--red); }
+.setb { display: inline-flex; margin: 12px 0 2px; font-size: 12px; font-weight: 800; color: var(--muted); background: var(--card2); border: 0; border-radius: 999px; padding: 7px 14px; }
+.bg-list { margin: 6px 0 4px; }
+.bg-row { display: grid; grid-template-columns: 40px 1fr 130px; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.bg-row:last-child { border-bottom: 0; }
+.bg-row .ill { width: 40px; height: 40px; border-radius: 13px; }
+.bg-row .ill svg { width: 28px; height: 28px; }
+.bg-row .with-unit .field { padding: 8px 30px 8px 10px; font-size: 16px; text-align: right; }
+/* 毎月・毎年 */
+.freq-seg { margin-top: 8px; }
+.when { display: flex; gap: 6px; }
+.when > * { flex: 1; }
+[data-mon-wrap][hidden] { display: none; }

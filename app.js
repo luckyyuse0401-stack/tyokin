@@ -128,7 +128,33 @@ const ILLUST = {
  "health": "<g transform=\"rotate(-40 32 32)\"><rect x=\"10\" y=\"22\" width=\"44\" height=\"20\" rx=\"10\" fill=\"#FFFFFF\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M32 22h12a10 10 0 0 1 0 20H32z\" fill=\"#B8F23A\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></g>",
  "other": "<path d=\"M10 22l22-12 22 12v22L32 56 10 44z\" fill=\"#FFFFFF\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M10 22l22 12 22-12\" fill=\"#B8F23A\"  stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M32 34v22\" fill=\"none\" stroke=\"#1C1F24\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>"
 };
-const catArt = c => ILLUST[c.id] ? `<span class="ill"><svg viewBox="0 0 64 64" aria-hidden="true">${ILLUST[c.id]}</svg></span>` : glyph(c.icon);
+const catArt = c => ILLUST[c.id] ? `<span class="ill"><svg viewBox="0 0 64 64" aria-hidden="true">${ILLUST[c.id].replaceAll('fill="#B8F23A"', 'style="fill:var(--lime)"')}</svg></span>` : glyph(c.icon);
+
+// アプリの色（アクセント・その濃い色・背景）。最初は「ライム」
+const THEMES = {
+  lime: { name: 'ライム', a: '#B8F23A', d: '#86B81C', bg: '#F1F2F0' },
+  sakura: { name: 'さくら', a: '#FF9EBB', d: '#E0708F', bg: '#F7F1F2' },
+  lavender: { name: 'ラベンダー', a: '#BBA6FF', d: '#8F75E6', bg: '#F3F1F7' },
+  mint: { name: 'ミント', a: '#86E3C8', d: '#4FB89A', bg: '#EFF4F2' },
+  sky: { name: 'スカイ', a: '#9CCBFF', d: '#5B9BE0', bg: '#F0F3F7' },
+  orange: { name: 'みかん', a: '#FFBE72', d: '#E0903C', bg: '#F7F3EE' },
+};
+function applyTheme(id = 'lime') {
+  const t = THEMES[id] || THEMES.lime, st = document.documentElement.style;
+  st.setProperty('--lime', t.a); st.setProperty('--mint', t.a); st.setProperty('--lime-dark', t.d); st.setProperty('--bg', t.bg);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t.bg);
+}
+
+// お金を使わなかった日のスタンプ（40×40のSVG）
+const STAMPS = {
+  zero: { name: '0円', svg: '<circle cx="20" cy="20" r="17" style="fill:var(--lime)"/><text x="20" y="24.5" font-size="11" font-weight="900" text-anchor="middle" fill="#16181C" font-family="sans-serif">0円</text>' },
+  heart: { name: 'ハート', svg: '<path d="M20 34s-13-7.8-13-17a7 7 0 0 1 13-3.6A7 7 0 0 1 33 17c0 9.2-13 17-13 17z" fill="#FF8FB1"/><path d="M13 14a4 4 0 0 1 4-2.5" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" opacity=".8"/>' },
+  star: { name: 'ほし', svg: '<path d="M20 4l4.6 9.6 10.4 1.4-7.6 7.3 1.9 10.4L20 27.8l-9.3 4.9 1.9-10.4L5 15l10.4-1.4z" fill="#FFD25A" stroke="#E8B53A" stroke-width="1.5" stroke-linejoin="round"/><circle cx="16.5" cy="19" r="1.3" fill="#7a5414"/><circle cx="23.5" cy="19" r="1.3" fill="#7a5414"/><path d="M17.5 22.5q2.5 2 5 0" stroke="#7a5414" stroke-width="1.3" fill="none" stroke-linecap="round"/>' },
+  paw: { name: 'にくきゅう', svg: '<ellipse cx="20" cy="25" rx="8" ry="7" fill="#F4A6A0"/><circle cx="10.5" cy="16" r="3.6" fill="#F4A6A0"/><circle cx="16" cy="10.5" r="3.6" fill="#F4A6A0"/><circle cx="24" cy="10.5" r="3.6" fill="#F4A6A0"/><circle cx="29.5" cy="16" r="3.6" fill="#F4A6A0"/>' },
+  flower: { name: 'おはな', svg: [0, 72, 144, 216, 288].map(a => `<ellipse cx="20" cy="10" rx="6" ry="8" fill="#FFB7CE" transform="rotate(${a} 20 20)"/>`).join('') + '<circle cx="20" cy="20" r="5" fill="#FFE07A"/>' },
+  smile: { name: 'にこちゃん', svg: '<circle cx="20" cy="20" r="16" fill="#8EC5FF"/><circle cx="14.5" cy="17" r="2" fill="#16181C"/><circle cx="25.5" cy="17" r="2" fill="#16181C"/><path d="M13 23q7 7 14 0" stroke="#16181C" stroke-width="2.2" fill="none" stroke-linecap="round"/><circle cx="11" cy="22" r="2.2" fill="#FF8FB1" opacity=".6"/><circle cx="29" cy="22" r="2.2" fill="#FF8FB1" opacity=".6"/>' },
+};
+const stampSvg = (k, cls = '') => STAMPS[k] ? `<svg class="${cls}" viewBox="0 0 40 40" aria-hidden="true">${STAMPS[k].svg}</svg>` : '';
 const catOf = (kind, id) => (CATS[kind] || []).find(c => c.id === id);
 
 
@@ -185,7 +211,15 @@ function normalize(d) {
   d.rec = Array.isArray(d.rec) ? d.rec.filter(r => r && r.id) : [];
   d.quick = Array.isArray(d.quick) && d.quick.length === QUICK_DEFAULT.length && d.quick.every(v => Number(v) > 0) ? d.quick.map(Number) : QUICK_DEFAULT.slice();
   for (const x of d.tx) { if (!x.id) x.id = uid(); x.amount = Number(x.amount) || 0; }
-  for (const r of d.rec) { r.skip = Array.isArray(r.skip) ? r.skip : []; r.amount = Number(r.amount) || 0; r.day = Math.min(31, Math.max(1, Number(r.day) || 1)); }
+  for (const r of d.rec) {
+    r.skip = Array.isArray(r.skip) ? r.skip : []; r.amount = Number(r.amount) || 0; r.day = Math.min(31, Math.max(1, Number(r.day) || 1));
+    if (r.freq === 'year') r.month = Math.min(12, Math.max(1, Number(r.month) || 1)); else delete r.freq;
+  }
+  if (!THEMES[d.theme]) d.theme = 'lime';
+  if (d.stamp !== 'none' && !STAMPS[d.stamp]) d.stamp = 'zero';
+  const bud = {};
+  for (const [k, v] of Object.entries(d.budget && typeof d.budget === 'object' ? d.budget : {})) if (Number(v) > 0 && catOf('expense', k)) bud[k] = Number(v);
+  d.budget = bud;
   return d;
 }
 function save() { if (P && D) store.set(`data:${P.id}`, D); }
@@ -193,6 +227,8 @@ function save() { if (P && D) store.set(`data:${P.id}`, D); }
 /* ---------- 計算 ---------- */
 const sv = x => x.kind === 'income' ? x.amount : x.kind === 'expense' ? -x.amount : x.amount; // adjust は符号つき
 const occDate = (r, ym) => `${ym}-${pad(Math.min(r.day, dim(ym)))}`;
+// 毎年の予定は、その月だけ
+const recIn = (r, ym) => r.freq !== 'year' || monthNum(ym) === r.month;
 
 function balance(upTo = today()) {
   let b = D.base;
@@ -207,6 +243,7 @@ function processRecurring() {
   for (const r of D.rec) {
     if (!r.amount) continue;
     for (let ym = ymOf(r.start); ym <= ymOf(t); ym = addMonths(ym, 1)) {
+      if (!recIn(r, ym)) continue;
       const date = occDate(r, ym);
       if (date < r.start || date > t || r.skip.includes(ym)) continue;
       if (D.tx.some(x => x.rec === r.id && x.ym === ym)) continue;
@@ -223,7 +260,7 @@ function virtuals(ym) {
   const t = today();
   const out = [];
   for (const r of D.rec) {
-    if (ym < ymOf(r.start)) continue;
+    if (ym < ymOf(r.start) || !recIn(r, ym)) continue;
     const date = occDate(r, ym);
     if (date < r.start || r.skip.includes(ym)) continue;
     if (D.tx.some(x => x.rec === r.id && x.ym === ym)) continue;
@@ -236,7 +273,7 @@ function virtuals(ym) {
 function ringsOf(ym) {
   const rings = {};
   for (const r of D.rec) {
-    if (ym < ymOf(r.start)) continue;
+    if (ym < ymOf(r.start) || !recIn(r, ym)) continue;
     const date = occDate(r, ym);
     if (date < r.start || r.skip.includes(ym)) continue;
     if (r.kind === 'expense') rings[date] = 'exp';
@@ -411,7 +448,15 @@ function padCommit(cat) {
   padReset();
   save(); render();
   const what = catOf('expense', cat)?.label;
-  toast(`${yen(amt)} を登録しました${what ? `（${what}）` : ''}`, () => { D.tx = D.tx.filter(x => x !== tx); save(); render(); });
+  // 予算を決めたカテゴリは、残りが少なくなったらひとこと
+  let left = '';
+  const lim = D.budget[cat];
+  if (lim) {
+    const used = D.tx.filter(x => x.kind === 'expense' && !x.rec && !x.plan && x.cat === cat && ymOf(x.date) === ymOf(today())).reduce((a, x) => a + x.amount, 0);
+    if (used > lim) left = ` · 予算を${yen(used - lim)}オーバー`;
+    else if (used >= lim * 0.8) left = ` · 予算まであと${yen(lim - used)}`;
+  }
+  toast(`${yen(amt)} を登録しました${what ? `（${what}）` : ''}${left}`, () => { D.tx = D.tx.filter(x => x !== tx); save(); render(); });
 }
 
 /* =========================================================
@@ -449,16 +494,23 @@ function viewMonthSum(ym) {
   // 今月は「先月の同じ日まで」と比べる
   const prev = monthByCat(pym, cur ? `${pym}-${pad(Math.min(days, dim(pym)))}` : `${pym}-31`);
   const hasPrev = Object.keys(prev).length > 0;
+  for (const k of Object.keys(D.budget)) by[k] ||= { total: 0, items: [] }; // 予算を決めたカテゴリは0円でも出す
   const rows = Object.entries(by).sort((a, b) => b[1].total - a[1].total);
   const max = rows[0]?.[1].total || 1;
   const label = k => k === 'adj' ? '入れ忘れ（残高合わせ）' : (catOf('expense', k)?.label || 'その他');
   const art = k => k === 'adj' ? `<div class="ill">${glyph('adj')}</div>` : catArt(catOf('expense', k) || catOf('expense', 'other'));
   const list = rows.map(([k, v], i) => {
     const p = prev[k]?.total || 0;
-    const trend = !hasPrev || i > 2 ? '' : v.total > p * 1.1 ? '<em>↑ 先月より多め</em>' : v.total < p * 0.9 ? '<em class="dn">↓ 先月より少なめ</em>' : '';
+    const lim = D.budget[k];
+    const trend = lim || !hasPrev || i > 2 ? '' : v.total > p * 1.1 ? '<em>↑ 先月より多め</em>' : v.total < p * 0.9 ? '<em class="dn">↓ 先月より少なめ</em>' : '';
     const open = sumOpen === k;
+    const r = lim ? v.total / lim : 0;
+    const bar = lim
+      ? `<div class="bar b ${r > 1 ? 'over' : r >= 0.8 ? 'near' : ''}"><i style="width:${Math.min(100, Math.max(2, Math.round(r * 100)))}%"></i></div>
+         <div class="bud ${r > 1 ? 'over' : ''}"><span>予算 ${yen(lim)}</span><b>${r > 1 ? `${yen(v.total - lim)} オーバー` : `あと ${yen(lim - v.total)}`}</b></div>`
+      : `<div class="bar"><i style="width:${Math.max(4, Math.round(v.total / max * 100))}%"></i></div>`;
     return `<button class="cr ${i === 0 ? 'top' : ''} ${open ? 'open' : ''}" data-act="sum-cat" data-k="${k}">${art(k)}
-      <div><div class="nm">${esc(label(k))}<small>${v.items.length}回</small></div><div class="bar"><i style="width:${Math.max(4, Math.round(v.total / max * 100))}%"></i></div></div>
+      <div><div class="nm">${esc(label(k))}<small>${v.items.length}回</small></div>${bar}</div>
       <div class="am num">${yen(v.total)}${trend}</div></button>
       ${open ? `<div class="det">${sortTx(v.items).map(x => txRow(x)).join('')}</div>` : ''}`;
   }).join('');
@@ -470,6 +522,7 @@ function viewMonthSum(ym) {
     <div class="sub"><span>引き落とし <b class="num">${yen(st.fixed)}</b></span><span>1日あたり <b class="num">${yen(Math.round(st.spent / Math.max(1, days)))}</b></span></div>
   </section>
   ${rows.length ? `<div class="cb">${list}</div>` : '<div class="empty" style="margin-top:14px">この月はまだ記録がありません</div>'}
+  <div style="text-align:center"><button class="setb" data-act="budget-set">${Object.keys(D.budget).length ? '予算を変える' : '＋ 予算を決める（入れたいカテゴリだけ）'}</button></div>
   ${fixedTx.length ? `<div class="sec-head"><h3>毎月の支払い</h3></div><div class="list">${fixedTx.map(x => txRow(x)).join('')}</div>` : ''}`;
 }
 
@@ -493,6 +546,9 @@ function viewCalendar() {
     else if (v.kind === 'expense') c.plan += v.amount; else c.planInc += v.amount;
   }
 
+  // お金を使わなかった日（使い始めた日〜昨日で、ふだんの支出が0円の日）にスタンプ
+  const spentDays = new Set(D.tx.filter(x => x.kind === 'expense' && !x.rec && !x.plan && ymOf(x.date) === ym).map(x => x.date));
+  const noMoney = date => D.stamp !== 'none' && date < t && date >= startDate() && !spentDays.has(date);
   let cells = '<div class="d blank"></div>'.repeat(first);
   for (let i = 1; i <= n; i++) {
     const date = `${ym}-${pad(i)}`;
@@ -506,7 +562,8 @@ function viewCalendar() {
     if (c.plan) lines.push(`<div class="m plan num">予${compact(c.plan)}</div>`);
     if (c.planInc) lines.push(`<div class="m in num">予+${compact(c.planInc)}</div>`);
     if (c.todo) lines.push('<div class="m todo">未入力</div>');
-    cells += `<button class="${cls}" data-act="day" data-date="${date}"><div class="n">${i}</div>${lines.slice(0, 2).join('')}</button>`;
+    const stamp = noMoney(date) ? stampSvg(D.stamp, 'stamp') : '';
+    cells += `<button class="${cls}" data-act="day" data-date="${date}"><div class="n">${i}</div>${stamp || lines.slice(0, 2).join('')}</button>`;
   }
 
   const items = sortTx([...D.tx.filter(x => x.date === selDay), ...vs.filter(v => v.date === selDay)], 1);
@@ -812,6 +869,7 @@ function viewSettings() {
 
   <div class="menu" style="margin-top:14px">
     <button data-act="adjust"><div class="l"><b>残高を合わせる</b><small>入れ忘れでズレたら、本当の残高を入れるだけ</small></div><span class="chev">›</span></button>
+    <button data-act="look-set"><div class="l"><b>アプリの色・スタンプ</b><small>${THEMES[D.theme].name} · お金を使わなかった日は「${D.stamp === 'none' ? 'なし' : STAMPS[D.stamp].name}」</small></div><span class="chev">›</span></button>
     <button data-act="quick-set"><div class="l"><b>よく使う金額</b><small>${D.quick.map(v => v.toLocaleString('ja-JP')).join(' · ')}</small></div><span class="chev">›</span></button>
     <button data-act="guide"><div class="l"><b>使い方ガイド</b><small>入れ方・カード・予測の見方など</small></div><span class="chev">›</span></button>
   </div>
@@ -820,7 +878,7 @@ function viewSettings() {
   <div class="menu">
     ${recs.map(r => `<button data-act="rec" data-id="${r.id}">
       <div class="ico ${r.kind === 'income' ? 'inc' : 'plan'}" style="width:38px;height:38px">${glyph(r.icon || (r.kind === 'income' ? 'salary' : 'bank'))}</div>
-      <div class="l"><b>${esc(r.name)}</b><small>毎月${r.day}日${r.day >= 29 ? '（ない月は月末）' : ''}</small></div>
+      <div class="l"><b>${esc(r.name)}</b><small>${r.freq === 'year' ? `毎年${r.month}月${r.day}日` : `毎月${r.day}日${r.day >= 29 ? '（ない月は月末）' : ''}`}</small></div>
       <div class="r num">${r.amount ? (r.kind === 'income' ? '+' : '−') + yen(r.amount) : '毎月入力'}</div><span class="chev">›</span>
     </button>`).join('')}
     <button class="add" data-act="fixed-set">＋ 家賃・光熱費などをまとめて選ぶ</button>
@@ -866,6 +924,7 @@ function viewSettings() {
 function render(keepScroll = true) {
   if (!P) return;
   if (processedOn !== today()) processRecurring();
+  applyTheme(D.theme);
   const y = window.scrollY;
   app.className = '';
   app.innerHTML = view === 'calendar' ? viewCalendar() : view === 'future' ? viewFuture() : view === 'settings' ? viewSettings() : viewHome();
@@ -926,6 +985,8 @@ app.addEventListener('click', e => {
     case 'goal': openGoal(); break;
     case 'adjust': openAdjust(); break;
     case 'quick-set': openQuickSet(); break;
+    case 'look-set': openLook(); break;
+    case 'budget-set': openBudget(); break;
     case 'guide': openGuide(); break;
     case 'rec-add': openRec(); break;
     case 'fixed-set': openFixed(); break;
@@ -1149,6 +1210,43 @@ function openAdjust() {
   });
 }
 
+// アプリの色とスタンプ（その場で見た目が変わる。閉じても選んだまま）
+function openLook() {
+  const th = Object.entries(THEMES).map(([k, t]) => `<button data-th="${k}"><span class="sw"><i style="background:${t.a}"></i><i style="background:#16181C"></i></span>${t.name}${k === 'lime' ? '<small>いつもの</small>' : ''}</button>`).join('');
+  const st = Object.keys(STAMPS).map(k => `<button data-st="${k}">${stampSvg(k)}${STAMPS[k].name}</button>`).join('') + '<button data-st="none"><span class="nost">なし</span>つけない</button>';
+  openSheet(`<h3>アプリの色・スタンプ</h3>
+    <div class="label">アプリの色</div><div class="pick-grid theme-grid">${th}</div>
+    <div class="label">お金を使わなかった日のスタンプ</div><p class="note" style="margin-top:0">カレンダーで、ふだんの支出が0円だった日に押されます。</p>
+    <div class="pick-grid stamp-grid">${st}</div>
+    <div class="stack"><button class="btn btn-primary" data-ok>閉じる</button></div>`,
+  s => {
+    const upd = () => {
+      $$('[data-th]', s).forEach(b => b.classList.toggle('on', b.dataset.th === D.theme));
+      $$('[data-st]', s).forEach(b => b.classList.toggle('on', b.dataset.st === D.stamp));
+    };
+    $$('[data-th]', s).forEach(b => b.onclick = () => { D.theme = b.dataset.th; applyTheme(D.theme); save(); upd(); });
+    $$('[data-st]', s).forEach(b => b.onclick = () => { D.stamp = b.dataset.st; save(); upd(); });
+    $('[data-ok]', s).onclick = () => { closeSheet(); render(); };
+    upd();
+  });
+}
+
+// カテゴリごとの予算（入れたいカテゴリだけ。空欄＝なし）
+function openBudget() {
+  const row = c => `<label class="bg-row">${catArt(c)}<b>${c.label}</b><span class="with-unit"><input class="field num" inputmode="numeric" placeholder="なし" value="${D.budget[c.id] ? D.budget[c.id].toLocaleString('ja-JP') : ''}" data-b="${c.id}"><span>円</span></span></label>`;
+  openSheet(`<h3>1か月の予算</h3>
+    <p class="lead">決めたいカテゴリだけ入れればOK。「今月のまとめ」で、あといくら使えるかが出ます。</p>
+    <div class="bg-list">${CATS.expense.map(row).join('')}</div>
+    <div class="stack"><button class="btn btn-primary" data-save>保存する</button></div>`,
+  s => {
+    $('[data-save]', s).onclick = () => {
+      const b = {};
+      $$('[data-b]', s).forEach(i => { const v = toInt(i.value); if (v > 0) b[i.dataset.b] = v; });
+      D.budget = b; save(); closeSheet(); render(); toast('予算を保存しました');
+    };
+  });
+}
+
 function openQuickSet() {
   const field = (v, i) => `<div class="amount-field qs-field"><span>¥</span><input class="num" inputmode="numeric" value="${v.toLocaleString('ja-JP')}" data-q="${i}" aria-label="よく使う金額${i + 1}"></div>`;
   openSheet(`<h3>よく使う金額</h3>
@@ -1178,6 +1276,9 @@ const GUIDE = [
   ['', 'よく使う金額・だいたいでOK', `<ul><li>よく使う金額を押したあとに数字を押すと、<b>打ち直し</b>になります。1,500 を押してから ⌫⌫ → 8・0 で 1,580 のように直すこともできます</li><li>ボタンの金額は 設定 →「よく使う金額」で自分用に変えられます</li><li>だいたいでOK。1,320円を「1,500」で入れても、ズレは「残高を合わせる」でまとめて直せます</li></ul>`],
   ['', '何にいくら使ったか見る', `<p>カレンダーのタブで「今月のまとめ」に切り替えると、カテゴリごとにいくら使ったかが多い順に出ます。カテゴリをタップすると、いつ・いくら使ったかの一覧が開きます。</p>`],
   ['', '家賃・光熱費などを登録する', `<p>設定 →「家賃・光熱費などをまとめて選ぶ」で、チェックして金額と引き落とし日を入れるだけ。電気やガスのように毎月変わるものは、金額を空欄にしておくと、カレンダーの赤丸からその月の金額を入れられます。</p>`],
+  ['', '予算を決める', `<p>カレンダー →「今月のまとめ」の下の「予算を決める」から、決めたいカテゴリだけ1か月の予算を入れます。まとめに「あと◯円」が出て、8割を超えるとオレンジ、超えると赤になります。登録したときにもお知らせします。</p>`],
+  ['', '自動車税・更新料など毎年の支払い', `<p>設定 →「＋ 追加する」で「毎年」を選び、何月何日と金額を入れます。月の「使ったお金」には入れず、その日に残高から引かれます。貯金目標の予測にも入ります。</p>`],
+  ['', 'アプリの色・スタンプ', `<p>設定 →「アプリの色・スタンプ」で、アプリの色（6色）と、お金を使わなかった日にカレンダーへ押されるスタンプ（6種類・つけないもOK）を選べます。</p>`],
   ['', '昨日の分・過去の分を入れる', `<p>ホームの「昨日以前の支出」か、カレンダーで日付をタップして「＋支出」から入れられます。</p>`],
   ['', 'クレジットカードの使い方', `<p>カードで買ったものは<b>その都度入れなくてOK</b>です。お金が減るのは引き落とし日なので、その日の金額だけ入れます。</p>
     <ol><li>設定 →「毎月の給料・引き落とし」でカードを追加（例：楽天カード・27日・金額は空欄）</li><li>カレンダーの<b style="color:var(--red)">赤丸</b>の日をタップして、明細の金額を入れる</li><li>その日になると自動で残高から引かれます</li></ol>
@@ -1201,28 +1302,36 @@ function openGuide() {
 /* ---------- 毎月の予定 ---------- */
 function openRec(id) {
   const r = id ? D.rec.find(x => x.id === id) : null;
-  let kind = r?.kind || 'expense';
-  openSheet(`<h3>${r ? '毎月の予定を編集' : '毎月の予定を追加'}</h3>
-    <p class="lead">給料・カードの引き落とし・家賃・スマホ代など</p>
+  let kind = r?.kind || 'expense', freq = r?.freq || 'month';
+  openSheet(`<h3>${r ? '予定を編集' : '予定を追加'}</h3>
+    <p class="lead">給料・カードの引き落とし・家賃などの毎月の予定と、自動車税・更新料などの毎年の支払い</p>
     <div class="seg kind-seg"><button data-k="expense">引き落とし（支出）</button><button data-k="income">給料（収入）</button></div>
+    <div class="seg freq-seg"><button data-f="month">毎月</button><button data-f="year">毎年</button></div>
     <div class="label">名前</div>
     <input class="field" maxlength="20" placeholder="例：楽天カード" value="${esc(r?.name || '')}" data-name>
     <div class="inline-fields">
-      <div><div class="label">毎月何日？</div><div class="with-unit"><input class="field num" inputmode="numeric" placeholder="27" value="${r?.day || ''}" data-day><span>日</span></div></div>
+      <div><div class="label" data-when>毎月何日？</div><div class="when"><div class="with-unit" data-mon-wrap><input class="field num" inputmode="numeric" placeholder="5" value="${r?.month || ''}" data-mon><span>月</span></div><div class="with-unit"><input class="field num" inputmode="numeric" placeholder="27" value="${r?.day || ''}" data-day><span>日</span></div></div></div>
       <div><div class="label">金額</div><div class="with-unit"><input class="field num" inputmode="numeric" placeholder="毎月変わる" value="${r?.amount || ''}" data-amt><span>円</span></div></div>
     </div>
-    <p class="note">カードみたいに毎月変わるなら、金額は<b>空欄</b>でOK。カレンダーの赤丸から、その月の金額を先に入れておけます。29〜31日がない月は月末になります。</p>
+    <p class="note" data-note></p>
     <div class="stack">
       <button class="btn btn-primary" data-save>保存</button>
       ${r ? '<button class="btn btn-danger" data-del>この予定を削除</button>' : ''}
     </div>`,
   s => {
-    const segBtns = $$('[data-k]', s);
+    const segBtns = $$('[data-k]', s), freqBtns = $$('[data-f]', s);
     const upd = () => {
       segBtns.forEach(b => b.classList.toggle('on', b.dataset.k === kind));
+      freqBtns.forEach(b => b.classList.toggle('on', b.dataset.f === freq));
+      $('[data-mon-wrap]', s).hidden = freq !== 'year';
+      $('[data-when]', s).textContent = freq === 'year' ? '毎年いつ？' : '毎月何日？';
+      $('[data-note]', s).innerHTML = freq === 'year'
+        ? '毎年の支払いは、月の「使ったお金」には入れず、その日に残高から引かれます。貯金目標の予測にも入ります。'
+        : 'カードみたいに毎月変わるなら、金額は<b>空欄</b>でOK。カレンダーの赤丸から、その月の金額を先に入れておけます。29〜31日がない月は月末になります。';
       $('[data-name]', s).placeholder = kind === 'income' ? '例：給料' : '例：楽天カード';
     };
     segBtns.forEach(b => b.onclick = () => { kind = b.dataset.k; upd(); });
+    freqBtns.forEach(b => b.onclick = () => { freq = b.dataset.f; upd(); });
     upd();
     if (!r) setTimeout(() => $('[data-name]', s).focus(), 250);
     $('[data-save]', s).onclick = () => {
@@ -1230,9 +1339,12 @@ function openRec(id) {
       const day = toInt($('[data-day]', s).value);
       const amt = toInt($('[data-amt]', s).value);
       if (!name) { shake($('[data-name]', s)); return; }
+      const mon = toInt($('[data-mon]', s).value);
       if (day < 1 || day > 31) { shake($('[data-day]', s)); return; }
-      if (r) Object.assign(r, { name: name.slice(0, 20), kind, day, amount: amt });
-      else D.rec.push({ id: uid(), name: name.slice(0, 20), kind, day, amount: amt, start: today(), skip: [] });
+      if (freq === 'year' && (mon < 1 || mon > 12)) { shake($('[data-mon]', s)); return; }
+      const f = freq === 'year' ? { freq, month: mon } : { freq: undefined, month: undefined };
+      if (r) { Object.assign(r, { name: name.slice(0, 20), kind, day, amount: amt }, f); if (!r.freq) { delete r.freq; delete r.month; } }
+      else D.rec.push({ id: uid(), name: name.slice(0, 20), kind, day, amount: amt, start: today(), skip: [], ...(freq === 'year' ? f : {}) });
       save(); closeSheet(); processRecurring(); render(); toast('保存しました');
     };
     $('[data-del]', s)?.addEventListener('click', () => confirmSheet({
@@ -1467,6 +1579,7 @@ function openProfile(p) {
 }
 
 function showWelcome() {
+  applyTheme();
   const hasOthers = getProfiles().length > 0;
   fullScreen(`<div class="screen">
     <div class="hero">${logo()}<h1 class="wordmark">ZUBO<i></i></h1><p>ズボラのための、お金の手帳</p></div>
@@ -1511,6 +1624,7 @@ function showWelcome() {
 }
 
 function showPicker() {
+  applyTheme();
   const list = getProfiles();
   if (!list.length) return showWelcome();
   fullScreen(`<div class="screen">
@@ -1528,6 +1642,7 @@ function showPicker() {
 }
 
 function showLock(p) {
+  applyTheme();
   const many = getProfiles().length > 1;
   fullScreen(`<div class="screen">
     <div class="hero"><div class="avatar" style="width:68px;height:68px;font-size:28px;margin:0 auto 12px">${esc([...p.name][0] || '?')}</div><h1 style="font-size:24px">${esc(p.name)}</h1></div>
