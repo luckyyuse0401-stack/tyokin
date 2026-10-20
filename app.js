@@ -218,6 +218,9 @@ function normalize(d) {
     r.skip = Array.isArray(r.skip) ? r.skip : []; r.amount = Number(r.amount) || 0; r.day = Math.min(31, Math.max(1, Number(r.day) || 1));
     if (r.freq === 'year') r.month = Math.min(12, Math.max(1, Number(r.month) || 1)); else delete r.freq;
   }
+  d.acc = Array.isArray(d.acc) ? d.acc.filter(a => a && a.id && a.id !== 'main' && a.name) : [];
+  for (const a of d.acc) a.base = Number(a.base) || 0;
+  d.mainName = typeof d.mainName === 'string' && d.mainName.trim() ? d.mainName.trim().slice(0, 16) : 'メイン口座';
   d.pm = Array.isArray(d.pm) ? d.pm.filter(p => p && p.id && p.name) : [];
   for (const p of d.pm) { p.type = p.type === 'card' ? 'card' : 'instant'; if (p.type === 'card') { p.close = Math.min(31, Math.max(0, Number(p.close) || 0)); p.pay = Math.min(31, Math.max(1, Number(p.pay) || 27)); p.off = p.off === 2 ? 2 : 1; } }
   if (!THEMES[d.theme]) d.theme = 'lime';
@@ -274,8 +277,26 @@ const cardOutstanding = () => D.pm.filter(p => p.type === 'card').reduce((a, c) 
 const hasCards = () => D.pm.some(p => p.type === 'card');
 const usable = () => balance() - cardOutstanding();
 
+/* ---------- 口座 ----------
+   メイン口座（D.base が最初の残高）＋追加した口座（D.acc）。
+   記録がどの口座のお金かは：予定→予定の口座、PayPayなど→その口座、カードの引き落とし→カードの口座、それ以外（現金・手入力）→記録の acc かメイン。 */
+const accList = () => [{ id: 'main', name: D.mainName, base: D.base }, ...D.acc];
+const multiAcc = () => D.acc.length > 0;
+const accName = id => accList().find(a => a.id === id)?.name || D.mainName;
+const validAcc = id => id === 'main' || D.acc.some(a => a.id === id) ? id : 'main';
+function accOfTx(x) {
+  if (x.rec) { const r = D.rec.find(r => r.id === x.rec); const c = r?.pm && cardOf(r.pm); return validAcc(c ? c.acc : r?.acc); }
+  if (x.pm) { const p = D.pm.find(p => p.id === x.pm); if (p && p.type === 'instant') return validAcc(p.acc); }
+  return validAcc(x.acc);
+}
+function accBalance(id, upTo = today()) {
+  let b = id === 'main' ? D.base : (D.acc.find(a => a.id === id)?.base || 0);
+  for (const x of D.tx) if (x.date <= upTo && !isCardBuy(x) && accOfTx(x) === id) b += sv(x);
+  return b;
+}
+
 function balance(upTo = today()) {
-  let b = D.base;
+  let b = D.base + D.acc.reduce((a, x) => a + x.base, 0);
   for (const x of D.tx) if (x.date <= upTo && !isCardBuy(x)) b += sv(x);
   return b;
 }
@@ -442,7 +463,9 @@ function viewHome() {
   <section class="balance slim">
     <div class="row"><span class="lbl">${esc(P.name)}の${cards ? '使えるお金' : '残高'} · ${fmtMD(t)}</span><span class="hint">${monthNum(ym)}月の収支 <b class="num ${st.net < 0 ? 'neg' : ''}">${sYen(st.net)}</b></span></div>
     <div class="row mid"><div class="big num ${showBal ? '' : 'masked'}"><small>¥</small>${showBal ? `${bal < 0 ? '−' : ''}${Math.abs(bal).toLocaleString('ja-JP')}` : '••••••'}</div>${eyeBtn()}</div>
-    ${cards ? `<div class="bal-sub"><div><span>口座の残高</span><b class="num">${balText(balance())}</b></div><div><span>カードの引き落とし待ち</span><b class="num red">${showBal ? '−' + yen(cardOutstanding()) : '¥••••'}</b></div></div>` : ''}
+    ${cards ? `<div class="bal-sub"><div><span>口座の残高${multiAcc() ? `（${accList().length}口座の合計）` : ''}</span><b class="num">${balText(balance())}</b></div><div><span>カードの引き落とし待ち</span><b class="num red">${showBal ? '−' + yen(cardOutstanding()) : '¥••••'}</b></div></div>` : ''}
+    ${multiAcc() ? `<button class="acc-toggle" data-act="acc-open">${accOpen ? '▲ 閉じる' : '▼ 口座ごとに見る'}</button>
+      ${accOpen ? `<div class="acc-list">${accList().map(a => `<div class="r"><span>${esc(a.name)}</span><b class="num">${balText(accBalance(a.id))}</b></div>`).join('')}</div>` : ''}` : ''}
   </section>
 
   ${padHTML()}
@@ -679,6 +702,7 @@ function viewCalendar() {
    AIは使わず、記録からルールで計算する
    ========================================================= */
 let futSel = null;
+let accOpen = false; // ホームで口座ごとの残高を開いているか
 let calMode = 'cal', sumOpen = null; // カレンダータブ：カレンダー / 今月のまとめ
 const lastDay = ym => `${ym}-${pad(dim(ym))}`;
 const daysBetween = (a, b) => Math.round((parseD(b) - parseD(a)) / 86400000);
@@ -944,10 +968,17 @@ function viewSettings() {
     <button data-act="guide"><div class="l"><b>使い方ガイド</b><small>入れ方・カード・予測の見方など</small></div><span class="chev">›</span></button>
   </div>
 
+  <div class="sec-head"><h3>口座</h3>${multiAcc() ? `<span class="aside">合計 ${balText(balance())}</span>` : ''}</div>
+  <div class="menu">
+    ${accList().map(a => `<button data-act="acc-edit" data-id="${a.id}"><div class="ico" style="width:38px;height:38px">${glyph('bank')}</div>
+      <div class="l"><b>${esc(a.name)}</b>${a.id === 'main' ? '<small>現金・ふだんの支出</small>' : ''}</div><div class="r num">${balText(accBalance(a.id))}</div><span class="chev">›</span></button>`).join('')}
+    <button class="add" data-act="acc-add">＋ 口座を追加</button>
+  </div>
+
   <div class="sec-head"><h3>支払い方法</h3></div>
   <div class="menu">
     ${D.pm.map(p => `<button data-act="pm-edit" data-id="${p.id}"><div class="ico plan" style="width:38px;height:38px">${glyph(p.type === 'card' ? 'bank' : 'purse')}</div>
-      <div class="l"><b>${esc(p.name)}</b><small>${p.type === 'card' ? closeText(p) : 'その場で残高から引く'}</small></div><span class="chev">›</span></button>`).join('')}
+      <div class="l"><b>${esc(p.name)}</b><small>${p.type === 'card' ? closeText(p) : 'その場で残高から引く'}${multiAcc() ? ` · ${esc(accName(validAcc(p.acc)))}` : ''}</small></div><span class="chev">›</span></button>`).join('')}
     <button class="add" data-act="pm-add">＋ カード・PayPayなどを追加</button>
   </div>
   <p class="note">登録すると、支出を入れるときに払い方を選べます。カードで払った分は、引き落とし日にまとめて引かれます。何も登録しなければ、今まで通りです。</p>
@@ -956,7 +987,7 @@ function viewSettings() {
   <div class="menu">
     ${recs.map(r => `<button data-act="rec" data-id="${r.id}">
       <div class="ico ${r.kind === 'income' ? 'inc' : 'plan'}" style="width:38px;height:38px">${glyph(r.icon || (r.kind === 'income' ? 'salary' : 'bank'))}</div>
-      <div class="l"><b>${esc(r.name)}</b><small>${r.freq === 'year' ? `毎年${r.month}月${r.day}日` : `毎月${r.day}日${r.day >= 29 ? '（ない月は月末）' : ''}`}</small></div>
+      <div class="l"><b>${esc(r.name)}</b><small>${r.freq === 'year' ? `毎年${r.month}月${r.day}日` : `毎月${r.day}日${r.day >= 29 ? '（ない月は月末）' : ''}`}${multiAcc() ? ` · ${esc(accName(validAcc(r.pm && cardOf(r.pm) ? cardOf(r.pm).acc : r.acc)))}` : ''}</small></div>
       <div class="r num">${r.amount ? (r.kind === 'income' ? '+' : '−') + yen(r.amount) : '毎月入力'}</div><span class="chev">›</span>
     </button>`).join('')}
     <button class="add" data-act="fixed-set">＋ 家賃・光熱費などをまとめて選ぶ</button>
@@ -1065,6 +1096,9 @@ app.addEventListener('click', e => {
     case 'adjust': openAdjust(); break;
     case 'quick-set': openQuickSet(); break;
     case 'pm-add': openPm(); break;
+    case 'acc-add': openAcc(); break;
+    case 'acc-edit': openAcc(ds_.id); break;
+    case 'acc-open': accOpen = !accOpen; render(); break;
     case 'pm-edit': openPm(ds_.id); break;
     case 'card-fix': openOccurrence(ds_.rec, ds_.ym); break;
     case 'look-set': openLook(); break;
@@ -1137,6 +1171,7 @@ function openEntry(o) {
   let date = edit ? edit.date : (o.date || today());
   let cat = edit?.cat || null;
   let pm = edit ? (edit.pm || 'cash') : (D.pm.length ? padPmNow() : 'cash');
+  let acc = validAcc(edit?.acc);
   const amount = edit ? edit.amount : (o.amount || '');
   const memo = edit?.memo || '';
   const cats = CATS[kind] || [];
@@ -1161,6 +1196,7 @@ function openEntry(o) {
     ${isRec ? '' : `
       <div class="label">${kind === 'income' ? 'どんな収入？' : 'なにに使った？'}${quick ? '<em>タップでそのまま登録</em>' : ''}</div>
       <div class="cats">${cats.map(c => `<button class="cat ${c.id === cat ? 'on' : ''}" data-cat="${c.id}">${kind === 'expense' ? catArt(c) : glyph(c.icon)}${c.label}</button>`).join('')}</div>`}
+    ${kind === 'income' && !isRec ? accChips(acc, 'どの口座に入った？') : ''}
     ${kind === 'expense' && !isRec && D.pm.length ? `<div class="label">払い方</div><div class="pad-pm">${['cash', ...D.pm.map(p => p.id)].map(id => `<button class="${pm === id ? 'on' : ''}" data-pm="${id}">${esc(pmLabel(id))}</button>`).join('')}</div>` : ''}
     <div class="label">メモ（なくてもOK）</div>
     <input class="field" maxlength="40" placeholder="${kind === 'income' ? '例：お祝い、メルカリ' : '例：ランチ、Amazon'}" value="${esc(memo)}" data-memo enterkeyhint="done">
@@ -1194,6 +1230,7 @@ function openEntry(o) {
       $$('[data-cat]', s).forEach(x => x.classList.toggle('on', x.dataset.cat === cat));
       updBtn();
     });
+    bindAccChips(s, v => { acc = v; });
     $$('[data-pm]', s).forEach(b => b.onclick = () => { pm = b.dataset.pm; $$('[data-pm]', s).forEach(x => x.classList.toggle('on', x.dataset.pm === pm)); });
     saveBtn.onclick = commit;
     $('[data-del]', s)?.addEventListener('click', () => { closeSheet(); deleteTx(edit); });
@@ -1212,6 +1249,7 @@ function openEntry(o) {
         if (m) edit.memo = m; else delete edit.memo;
         if (cat) edit.cat = cat; else delete edit.cat;
         if (kind === 'expense' && !edit.rec) { if (pm !== 'cash') edit.pm = pm; else delete edit.pm; }
+        if (kind === 'income' && !edit.rec) { if (acc !== 'main') edit.acc = acc; else delete edit.acc; }
         if (!edit.rec && date > today()) edit.plan = true;
         save(); closeSheet(); render(); toast('保存しました');
         return;
@@ -1222,6 +1260,7 @@ function openEntry(o) {
       if (isRec) { tx.rec = recId; tx.ym = o.ym; tx.name = name; }
       else if (date > today()) tx.plan = true;
       if (kind === 'expense' && !isRec && pm !== 'cash') { tx.pm = pm; D.pmLast = pm; }
+      if (kind === 'income' && !isRec && acc !== 'main') tx.acc = acc;
       D.tx.push(tx);
       save(); closeSheet(); render();
       const what = [catOf(kind, cat)?.label, m].filter(Boolean).join('・');
@@ -1262,10 +1301,12 @@ function openAdjustDelete(tx) {
 
 /* ---------- 残高の直接修正 ---------- */
 function openAdjust() {
-  const bal = balance();
+  let acc = 'main';
+  let bal = multiAcc() ? accBalance(acc) : balance();
   openSheet(`<h3>残高を合わせる</h3>
     <p class="lead">銀行アプリやお財布を見て、<b>本当の残高</b>を入れてください。入れ忘れがあっても、ここで合わせればOKです。</p>
-    <div class="adj-now"><span>アプリの残高</span><b class="num">${bal < 0 ? '−' : ''}${yen(bal)}</b></div>
+    ${accChips(acc)}
+    <div class="adj-now"><span>アプリの残高</span><b class="num" data-now>${bal < 0 ? '−' : ''}${yen(bal)}</b></div>
     <div class="label">本当の残高</div>
     <div class="amount-field" style="margin-top:0"><span>¥</span><input class="num" inputmode="numeric" placeholder="${Math.max(0, bal)}" data-v aria-label="本当の残高"></div>
     <div class="adj-diff" data-diff hidden></div>
@@ -1283,6 +1324,7 @@ function openAdjust() {
       btn.textContent = d ? 'この残高に合わせる' : '閉じる';
     };
     inp.addEventListener('input', upd);
+    bindAccChips(s, v => { acc = v; bal = accBalance(acc); $('[data-now]', s).textContent = `${bal < 0 ? '−' : ''}${yen(bal)}`; inp.placeholder = Math.max(0, bal); upd(); });
     setTimeout(() => inp.focus(), 250);
     btn.onclick = () => {
       if (!/\d/.test(inp.value)) { shake(inp.parentElement); inp.focus(); return; }
@@ -1291,9 +1333,51 @@ function openAdjust() {
       if (!diff) { toast('ぴったりでした'); return; }
       // 差額は「入れ忘れ」として記録（集計・予測にも入る）
       const tx = { id: uid(), date: today(), kind: diff < 0 ? 'expense' : 'income', amount: Math.abs(diff), name: '入れ忘れ（残高合わせ）', adj: true };
+      if (acc !== 'main') tx.acc = acc;
       D.tx.push(tx); save(); render();
       toast('残高を合わせました', () => { D.tx = D.tx.filter(x => x !== tx); save(); render(); });
     };
+  });
+}
+
+// 口座を選ぶボタン（口座が2つ以上のときだけ出す）
+const accChips = (sel, label = 'どの口座？') => multiAcc() ? `<div class="label">${label}</div><div class="chips acc-chips">${accList().map(a => `<button class="${a.id === sel ? 'on' : ''}" data-acc="${a.id}">${esc(a.name)}</button>`).join('')}</div>` : '';
+function bindAccChips(s, set) {
+  $$('[data-acc]', s).forEach(b => b.onclick = () => { set(b.dataset.acc); $$('[data-acc]', s).forEach(x => x.classList.toggle('on', x === b)); });
+}
+
+// 口座の追加・編集
+function openAcc(id) {
+  const isMain = id === 'main', a = isMain ? null : D.acc.find(x => x.id === id);
+  const edit = isMain || !!a;
+  openSheet(`<h3>${edit ? '口座を編集' : '口座を追加'}</h3>
+    <div class="label">名前</div><input class="field" maxlength="16" placeholder="例：楽天銀行、ゆうちょ" value="${esc(isMain ? D.mainName : a?.name || '')}" data-name>
+    ${edit ? `<p class="note">残高がズレたときは、設定の「残高を合わせる」で口座を選んで直せます。</p>`
+      : `<div class="label">今の残高</div><div class="with-unit"><input class="field num" inputmode="numeric" placeholder="例：50000" data-bal><span>円</span></div>
+         <p class="note">現金とふだんの支出は「${esc(D.mainName)}」から引かれます。給料・カード・PayPayなどは、それぞれの登録画面でどの口座か選べます。</p>`}
+    <div class="stack"><button class="btn btn-primary" data-save>保存</button>${a ? '<button class="btn btn-danger" data-del>この口座を削除</button>' : ''}</div>`,
+  s => {
+    if (!edit) setTimeout(() => $('[data-name]', s).focus(), 250);
+    $('[data-save]', s).onclick = () => {
+      const name = $('[data-name]', s).value.trim().slice(0, 16);
+      if (!name) { shake($('[data-name]', s)); return; }
+      if (isMain) D.mainName = name;
+      else if (a) a.name = name;
+      else D.acc.push({ id: uid(), name, base: toSignedInt($('[data-bal]', s).value) });
+      save(); closeSheet(); render(); toast('保存しました');
+    };
+    $('[data-del]', s)?.addEventListener('click', () => confirmSheet({
+      title: `「${esc(a.name)}」を削除しますか？`, ok: '削除する', danger: true,
+      body: `この口座の残高と記録は「${esc(D.mainName)}」にまとめます。合計の残高は変わりません。`,
+      onOk: () => {
+        D.base += a.base;
+        for (const x of D.tx) if (x.acc === a.id) delete x.acc;
+        for (const r of D.rec) if (r.acc === a.id) delete r.acc;
+        for (const p of D.pm) if (p.acc === a.id) delete p.acc;
+        D.acc = D.acc.filter(x => x !== a);
+        save(); render(); toast('削除しました');
+      },
+    }));
   });
 }
 
@@ -1301,7 +1385,7 @@ function openAdjust() {
 const CLOSE_PRESETS = [{ close: 0, off: 1, pay: 27 }, { close: 15, off: 1, pay: 10 }, { close: 0, off: 1, pay: 26 }, { close: 0, off: 2, pay: 4 }];
 function openPm(id) {
   const p = id ? D.pm.find(x => x.id === id) : null;
-  let type = p?.type || 'card';
+  let type = p?.type || 'card', acc = validAcc(p?.acc);
   const cur = p?.type === 'card' ? { close: p.close, off: p.off, pay: p.pay } : CLOSE_PRESETS[0];
   let preset = CLOSE_PRESETS.findIndex(c => c.close === cur.close && c.off === cur.off && c.pay === cur.pay);
   openSheet(`<h3>${p ? '支払い方法を編集' : '支払い方法を追加'}</h3>
@@ -1317,9 +1401,11 @@ function openPm(id) {
       <p class="note">カードの明細や公式サイトに「◯日締め・翌月◯日払い」と書いてあります。締め日が月末なら0を入れてください。</p>
     </div>
     <p class="note" data-instant>PayPay残高やデビットカードのように、払ったその場で口座から減るものです。</p>
+    ${accChips(acc, 'どの口座から引かれる？（PayPayはチャージ元）')}
     <div class="stack"><button class="btn btn-primary" data-save>保存</button>${p ? '<button class="btn btn-danger" data-del>この支払い方法を削除</button>' : ''}</div>`,
   s => {
     $('[data-off]', s).value = String(cur.off);
+    bindAccChips(s, v => { acc = v; });
     const upd = () => {
       $$('[data-t]', s).forEach(b => b.classList.toggle('on', b.dataset.t === type));
       $('[data-card]', s).hidden = type !== 'card'; $('[data-instant]', s).hidden = type === 'card';
@@ -1338,12 +1424,14 @@ function openPm(id) {
       const name = $('[data-name]', s).value.trim().slice(0, 16);
       if (!name) { shake($('[data-name]', s)); return; }
       const v = { name, type };
+      if (acc !== 'main') v.acc = acc;
       if (type === 'card') {
         v.close = toInt($('[data-close]', s).value); v.off = Number($('[data-off]', s).value) === 2 ? 2 : 1; v.pay = toInt($('[data-pay]', s).value);
         if (v.close > 31) { shake($('[data-close]', s)); return; }
         if (v.pay < 1 || v.pay > 31) { shake($('[data-pay]', s)); return; }
       }
       const it = p || { id: uid() };
+      delete it.acc;
       Object.assign(it, v);
       if (!p) D.pm.push(it);
       if (type === 'card') {
@@ -1436,6 +1524,7 @@ const GUIDE = [
   ['', '何にいくら使ったか見る', `<p>カレンダーのタブで「今月のまとめ」に切り替えると、カテゴリごとにいくら使ったかが多い順に出ます。カテゴリをタップすると、いつ・いくら使ったかの一覧が開きます。</p>`],
   ['', '家賃・光熱費などを登録する', `<p>設定 →「家賃・光熱費などをまとめて選ぶ」で、チェックして金額と引き落とし日を入れるだけ。電気やガスのように毎月変わるものは、金額を空欄にしておくと、カレンダーの赤丸からその月の金額を入れられます。</p>`],
   ['', 'カード・PayPayで払ったとき', `<p>設定 →「支払い方法」にカードやPayPayを登録すると、支出を入れるときに払い方を選べます（前回の払い方が最初から選ばれています）。</p><ul><li><b>カード</b>：その場では口座の残高から引かず、締め日に合わせて引き落とし日にまとめて引きます。トップには「使えるお金」（口座の残高 − カードの引き落とし待ち）が出ます</li><li>明細が来たら「今月のまとめ」のカードの欄から、明細の金額に合わせられます</li><li><b>PayPay残高など</b>：その場で残高から引きます</li></ul><p>何も登録しなければ、今まで通りです。</p>`],
+  ['', '口座が2つ以上あるとき', `<p>設定 →「口座」で口座を追加すると、トップは全部の口座の合計になり、「▼ 口座ごとに見る」で口座ごとの残高が開きます。</p><ul><li>現金・ふだんの支出は、一番上の口座から引かれます</li><li>給料・家賃などの予定、カード、PayPayは、それぞれの登録画面で口座を選べます</li><li>ズレたら「残高を合わせる」で口座を選んで直します</li></ul>`],
   ['', '予算を決める', `<p>カレンダー →「今月のまとめ」の下の「予算を決める」から、決めたいカテゴリだけ1か月の予算を入れます。まとめに「あと◯円」が出て、8割を超えるとオレンジ、超えると赤になります。登録したときにもお知らせします。</p>`],
   ['', '自動車税・更新料など毎年の支払い', `<p>設定 →「＋ 追加する」で「毎年」を選び、何月何日と金額を入れます。月の「使ったお金」には入れず、その日に残高から引かれます。貯金目標の予測にも入ります。</p>`],
   ['', 'アプリの色・スタンプ', `<p>設定 →「アプリの色・スタンプ」で、アプリの色（6色）と、お金を使わなかった日にカレンダーへ押されるスタンプ（6種類・つけないもOK）を選べます。</p>`],
@@ -1462,7 +1551,8 @@ function openGuide() {
 /* ---------- 毎月の予定 ---------- */
 function openRec(id) {
   const r = id ? D.rec.find(x => x.id === id) : null;
-  let kind = r?.kind || 'expense', freq = r?.freq || 'month';
+  let kind = r?.kind || 'expense', freq = r?.freq || 'month', acc = validAcc(r?.acc);
+  const linkedCard = r?.pm && cardOf(r.pm);
   openSheet(`<h3>${r ? '予定を編集' : '予定を追加'}</h3>
     <p class="lead">給料・カードの引き落とし・家賃などの毎月の予定と、自動車税・更新料などの毎年の支払い</p>
     <div class="seg kind-seg"><button data-k="expense">引き落とし（支出）</button><button data-k="income">給料（収入）</button></div>
@@ -1474,6 +1564,7 @@ function openRec(id) {
       <div><div class="label">金額</div><div class="with-unit"><input class="field num" inputmode="numeric" placeholder="毎月変わる" value="${r?.amount || ''}" data-amt><span>円</span></div></div>
     </div>
     <p class="note" data-note></p>
+    ${linkedCard ? (multiAcc() ? `<p class="note">引き落とし口座は「${esc(linkedCard.name)}」の支払い方法の設定で変えられます（今は${esc(accName(validAcc(linkedCard.acc)))}）。</p>` : '') : accChips(acc)}
     <div class="stack">
       <button class="btn btn-primary" data-save>保存</button>
       ${r ? '<button class="btn btn-danger" data-del>この予定を削除</button>' : ''}
@@ -1492,6 +1583,7 @@ function openRec(id) {
     };
     segBtns.forEach(b => b.onclick = () => { kind = b.dataset.k; upd(); });
     freqBtns.forEach(b => b.onclick = () => { freq = b.dataset.f; upd(); });
+    bindAccChips(s, v => { acc = v; });
     upd();
     if (!r) setTimeout(() => $('[data-name]', s).focus(), 250);
     $('[data-save]', s).onclick = () => {
@@ -1503,8 +1595,9 @@ function openRec(id) {
       if (day < 1 || day > 31) { shake($('[data-day]', s)); return; }
       if (freq === 'year' && (mon < 1 || mon > 12)) { shake($('[data-mon]', s)); return; }
       const f = freq === 'year' ? { freq, month: mon } : { freq: undefined, month: undefined };
-      if (r) { Object.assign(r, { name: name.slice(0, 20), kind, day, amount: amt }, f); if (!r.freq) { delete r.freq; delete r.month; } }
-      else D.rec.push({ id: uid(), name: name.slice(0, 20), kind, day, amount: amt, start: today(), skip: [], ...(freq === 'year' ? f : {}) });
+      const a = acc !== 'main' && !linkedCard ? { acc } : {};
+      if (r) { Object.assign(r, { name: name.slice(0, 20), kind, day, amount: amt }, f); if (!r.freq) { delete r.freq; delete r.month; } if (!linkedCard) { delete r.acc; Object.assign(r, a); } }
+      else D.rec.push({ id: uid(), name: name.slice(0, 20), kind, day, amount: amt, start: today(), skip: [], ...(freq === 'year' ? f : {}), ...a });
       save(); closeSheet(); processRecurring(); render(); toast('保存しました');
     };
     $('[data-del]', s)?.addEventListener('click', () => confirmSheet({
@@ -1877,7 +1970,11 @@ function exportObject(trimMonths = 0) {
   if (trimMonths) {
     // 古い履歴を残高に畳み込んで、リンクを短くする
     const cutoff = `${addMonths(ymOf(today()), -(trimMonths - 1))}-01`;
-    for (const x of d.tx) if (x.date < cutoff && !isCardBuy(x)) d.base += sv(x); // カードの買い物は引き落としの方で引かれている
+    for (const x of d.tx) {
+      if (x.date >= cutoff || isCardBuy(x)) continue; // カードの買い物は引き落としの方で引かれている
+      const a = accOfTx(x);
+      if (a === 'main') d.base += sv(x); else { const acc = d.acc.find(y => y.id === a); if (acc) acc.base += sv(x); }
+    }
     d.tx = d.tx.filter(x => x.date >= cutoff);
     for (const r of d.rec) if (r.start < cutoff) r.start = cutoff;
   }
@@ -1980,7 +2077,12 @@ function pickImportFile() {
 function confirmImport(obj, { fromLink = false } = {}) {
   const d = normalize(obj.d);
   const exists = getProfiles().find(p => p.id === obj.p.id);
-  const bal = (() => { let b = d.base; for (const x of d.tx) if (x.date <= today()) b += sv(x); return b; })();
+  const bal = (() => {
+    const card = id => d.pm.some(p => p.id === id && p.type === 'card');
+    let b = d.base + d.acc.reduce((a, x) => a + x.base, 0);
+    for (const x of d.tx) if (x.date <= today() && !(x.kind === 'expense' && !x.rec && x.pm && card(x.pm))) b += sv(x);
+    return b;
+  })();
   const body = `<div class="card" style="margin-top:12px">
       <div style="display:flex;gap:12px;align-items:center"><span class="avatar">${esc([...obj.p.name][0] || '?')}</span><b style="font-size:18px">${esc(obj.p.name)}</b></div>
       <p class="note">残高 <b class="num" style="color:var(--ink)">${bal < 0 ? '−' : ''}${yen(bal)}</b> ・ 記録 ${d.tx.length}件 ・ 毎月の予定 ${d.rec.length}件</p>

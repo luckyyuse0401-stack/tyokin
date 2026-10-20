@@ -793,3 +793,9 @@ select.field { appearance: none; -webkit-appearance: none; background: #fff url(
 .ccard .h .v small { display: block; font-size: 11px; color: var(--muted); }
 .ccard .ft { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); font-weight: 700; margin-top: 10px; }
 .ccard .fix { margin-top: 10px; width: 100%; border: 2px dashed var(--card2); background: none; border-radius: 14px; padding: 8px; font-weight: 800; font-size: 13px; color: var(--muted); }
+
+/* 口座 */
+.acc-toggle { display: inline-flex; align-items: center; margin-top: 8px; background: var(--card2); border: 0; border-radius: 999px; padding: 5px 12px; font-weight: 800; font-size: 12px; color: var(--muted); }
+.acc-list { margin-top: 8px; border-top: 1px solid var(--line); }
+.acc-list .r { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px dashed var(--line); font-weight: 800; font-size: 14px; }
+.acc-list .r:last-child { border-bottom: 0; }
