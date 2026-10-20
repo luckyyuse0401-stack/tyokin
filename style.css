@@ -768,3 +768,28 @@ select.field { appearance: none; -webkit-appearance: none; background: #fff url(
 .when { display: flex; gap: 6px; }
 .when > * { flex: 1; }
 [data-mon-wrap][hidden] { display: none; }
+
+/* 支払い方法 */
+.bal-sub { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 2px; }
+.bal-sub div { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); font-weight: 700; }
+.bal-sub b { color: var(--ink); font-weight: 800; }
+.bal-sub b.red { color: var(--red); }
+.pad-pm { display: flex; gap: 6px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; }
+.pad-pm::-webkit-scrollbar { display: none; }
+.pad-pm button { flex: 1 0 auto; min-width: 72px; height: 32px; border-radius: 999px; border: 2px solid var(--card2); background: #fff; font-weight: 800; font-size: 12.5px; color: var(--muted); padding: 0 10px; white-space: nowrap; }
+.pad-pm button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.pad .pad-hint { margin-top: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+.chips button { border: 2px solid var(--card2); background: #fff; border-radius: 999px; padding: 8px 12px; font-weight: 800; font-size: 13px; color: var(--ink); }
+.chips button.on { background: var(--lime); border-color: var(--lime); box-shadow: 0 3px 0 var(--lime-dark); }
+[data-custom][hidden], [data-card][hidden], [data-instant][hidden] { display: none; }
+.ccard { background: #fff; border-radius: 22px; box-shadow: var(--lift); padding: 14px; margin-top: 12px; }
+.ccard .h { display: flex; align-items: center; gap: 10px; }
+.ccard .h .ic { width: 38px; height: 38px; border-radius: 12px; background: var(--red-soft); display: grid; place-items: center; color: var(--red); flex: none; }
+.ccard .h .ic .gl { width: 20px; height: 20px; }
+.ccard .h b { font-size: 15px; }
+.ccard .h small { display: block; font-size: 12px; color: var(--muted); font-weight: 700; }
+.ccard .h .v { margin-left: auto; text-align: right; font-weight: 800; font-size: 20px; }
+.ccard .h .v small { display: block; font-size: 11px; color: var(--muted); }
+.ccard .ft { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); font-weight: 700; margin-top: 10px; }
+.ccard .fix { margin-top: 10px; width: 100%; border: 2px dashed var(--card2); background: none; border-radius: 14px; padding: 8px; font-weight: 800; font-size: 13px; color: var(--muted); }
