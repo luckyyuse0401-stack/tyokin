@@ -1127,11 +1127,34 @@ app.addEventListener('click', e => {
    ========================================================= */
 function openSheet(html, mount) {
   const root = $('#sheet-root');
-  root.innerHTML = `<div class="backdrop"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div></div>`;
+  root.innerHTML = `<div class="backdrop"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div><button class="sheet-x" aria-label="閉じる">${glyph('x')}</button>${html}</div></div>`;
   const bd = root.firstElementChild;
   bd.addEventListener('click', e => { if (e.target === bd) closeSheet(); });
   document.body.style.overflow = 'hidden';
   const sheet = $('.sheet', root);
+  $('.sheet-x', sheet).onclick = () => closeSheet();
+  // 下にスワイプして閉じる（いちばん上までスクロールしているときだけ）
+  let y0 = null, dy = 0, t0 = 0;
+  sheet.addEventListener('touchstart', e => {
+    if (sheet.scrollTop > 0 || e.target.closest('input, textarea, select')) { y0 = null; return; }
+    y0 = e.touches[0].clientY; dy = 0; t0 = Date.now(); sheet.style.transition = 'none';
+  }, { passive: true });
+  sheet.addEventListener('touchmove', e => {
+    if (y0 === null) return;
+    dy = e.touches[0].clientY - y0;
+    if (dy <= 0) { sheet.style.transform = ''; return; }
+    e.preventDefault();
+    sheet.style.transform = `translateY(${dy}px)`;
+  }, { passive: false });
+  sheet.addEventListener('touchend', () => {
+    if (y0 === null) return;
+    y0 = null;
+    sheet.style.transition = 'transform .2s ease';
+    if (dy > 110 || (dy > 40 && dy / (Date.now() - t0) > 0.5)) {
+      sheet.style.transform = 'translateY(100%)';
+      setTimeout(() => { if ($('#sheet-root').contains(sheet)) closeSheet(); }, 180);
+    } else sheet.style.transform = '';
+  });
   mount?.(sheet);
   return sheet;
 }

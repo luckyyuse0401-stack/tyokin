@@ -13,7 +13,7 @@
 ## 作り
 - 素のJS（フレームワークなし）の PWA。`index.html` / `app.js`（本体、約1900行）/ `style.css` / `sw.js` / `manifest.webmanifest` / `icons/` / `vendor/`（QR用の jsQR・qrcode-generator、MIT）
 - データは端末の localStorage だけ。キーは `nokori:` で始まる（`profiles` / `last` / `data:{id}` / `snap:{id}`）。サーバーなし・ログインなし。
-- **デプロイのたびに `sw.js` の `CACHE`（今は `zubo-v22`）を1つ上げる。**
+- **デプロイのたびに `sw.js` の `CACHE`（今は `zubo-v23`）を1つ上げる。**
 - 機種変更の引き継ぎ：PINから作った鍵でAES-GCM暗号化 → deflate → base64url。`#import=` か `ZUBO:` で始まるコード。QRとコピペの両方。
 - Face ID：WebAuthn のパスキー（`P.fid`）。パスコードがオンのときだけ使える。
 
@@ -39,7 +39,7 @@
 cd /home/user/tyokin && python3 -m http.server 8765   # バックグラウンドで
 cd tests && mkdir -p out && node t12.js out            # 各テストは出力先フォルダを引数に取る
 ```
-- `t10.js` 金額入力 / `t11.js` パスコード初期オフ / `t12.js` 毎月かかるお金・今月のまとめ / `t13.js` スタンプ・色・予算・毎年の支払い / `t14.js` 支払い方法・使えるお金 / `t15.js` 口座 … `OK/NG` を出す
+- `t10.js` 金額入力 / `t11.js` パスコード初期オフ / `t12.js` 毎月かかるお金・今月のまとめ / `t13.js` スタンプ・色・予算・毎年の支払い / `t14.js` 支払い方法・使えるお金 / `t15.js` 口座 / `t16.js` シートを×・下スワイプで閉じる … `OK/NG` を出す
 - `test.js` `test4.js` `test6.js` `t7.js`（引き継ぎ）`t8.js`（Face ID）`t9.js`（予測）… 結果をログに出すだけ。`t8.js` の `unlocked false` は以前から同じ（仮想認証器の都合）
 - `fontroute.js`：この環境のブラウザはプロキシを直接使えないので、Googleフォントを curl 経由で取ってくる
 

@@ -799,3 +799,10 @@ select.field { appearance: none; -webkit-appearance: none; background: #fff url(
 .acc-list { margin-top: 8px; border-top: 1px solid var(--line); }
 .acc-list .r { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px dashed var(--line); font-weight: 800; font-size: 14px; }
 .acc-list .r:last-child { border-bottom: 0; }
+
+/* シート：右上の × と、下スワイプで閉じる */
+.sheet { position: relative; overscroll-behavior: contain; }
+.sheet-x { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border-radius: 50%; background: var(--card2); border: 0; color: var(--muted); display: grid; place-items: center; z-index: 2; }
+.sheet-x .gl { width: 14px; height: 14px; }
+.sheet h3 { padding-right: 40px; }
+.entry-head { padding-right: 40px; }
