@@ -177,7 +177,7 @@ let P = null;          // 開いているプロフィール {id, name, pin:{salt
 let D = null;          // そのデータ
 let view = 'home';
 let calYM = ymOf(today());
-let selDay = today();
+let selDay = null; // カレンダーでタップした日（タップするまで何も開かない）
 // 金額パッド（よく使う金額のワンタップ＋テンキー）
 // padFresh = よく使う金額を押した直後。次に数字を押すと打ち直し、⌫なら続きを直せる
 const QUICK_DEFAULT = [500, 1000, 1500, 2000, 3000];
@@ -594,14 +594,14 @@ function viewCalendar() {
   </div>
   ${D.rec.length ? '' : `<div class="tip">設定の「毎月の給料・引き落とし」にカードや家賃を登録すると、カレンダーに<b style="color:var(--red)">赤丸</b>がつきます。<button class="aside" data-act="go" data-view="settings" style="color:var(--teal);font-weight:700;margin-left:4px">登録する</button></div>`}
 
-  <section class="day-panel">
+  ${selDay ? `<section class="day-panel">
     <div class="h"><b>${fmtMDW(selDay)}${selDay === t ? '（今日）' : ''}</b><span class="num">${items.length ? (future ? '予定 ' : '') + sYen(dayTotal) : ''}</span></div>
     <div class="list">${items.length ? items.map(x => txRow(x, { showDate: false })).join('') : `<div class="empty">${future ? 'この日の予定はありません' : 'この日の記録はありません'}</div>`}</div>
-    <div class="two">
-      <button class="btn btn-white" data-act="add" data-kind="expense" data-date="${selDay}">＋ 支出${future ? 'の予定' : ''}</button>
-      <button class="btn btn-income" data-act="add" data-kind="income" data-date="${selDay}">＋ 収入${future ? 'の予定' : ''}</button>
-    </div>
-  </section>
+    ${future ? `<div class="two">
+      <button class="btn btn-white" data-act="add" data-kind="expense" data-date="${selDay}">使う予定を入れる</button>
+      <button class="btn btn-income" data-act="add" data-kind="income" data-date="${selDay}">入る予定を入れる</button>
+    </div>` : ''}
+  </section>` : ''}
 
   <div class="sec-head"><h3>${monthNum(ym)}月の記録</h3><span class="aside">タップで修正・削除</span></div>
   <div class="list">${monthList || '<div class="empty">この月の記録はありません</div>'}</div>`;
@@ -947,7 +947,7 @@ function go(v) {
 tabbar.addEventListener('click', e => {
   const b = e.target.closest('button[data-view]');
   if (!b) return;
-  if (b.dataset.view === 'calendar' && view !== 'calendar') { calYM = ymOf(today()); selDay = today(); }
+  if (b.dataset.view === 'calendar' && view !== 'calendar') { calYM = ymOf(today()); selDay = null; }
   if (b.dataset.view === 'future' && view !== 'future') futSel = null;
   go(b.dataset.view);
 });
@@ -976,11 +976,11 @@ app.addEventListener('click', e => {
     case 'month': {
       const d = Number(ds_.d);
       calYM = d === 0 ? ymOf(today()) : addMonths(calYM, d); sumOpen = null;
-      selDay = calYM === ymOf(today()) ? today() : `${calYM}-01`;
+      selDay = null;
       render(false);
       break;
     }
-    case 'day': selDay = ds_.date; render(); $('.day-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); break;
+    case 'day': selDay = selDay === ds_.date ? null : ds_.date; render(); $('.day-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); break;
     case 'fut-month': futSel = ds_.ym; render(); break;
     case 'goal': openGoal(); break;
     case 'adjust': openAdjust(); break;
@@ -1572,7 +1572,7 @@ function openProfile(p) {
   showBal = false;
   padReset();
   calYM = ymOf(today());
-  selDay = today();
+  selDay = null;
   processedOn = '';
   takeSnapshot();
   render(false);

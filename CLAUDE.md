@@ -13,7 +13,7 @@
 ## 作り
 - 素のJS（フレームワークなし）の PWA。`index.html` / `app.js`（本体、約1900行）/ `style.css` / `sw.js` / `manifest.webmanifest` / `icons/` / `vendor/`（QR用の jsQR・qrcode-generator、MIT）
 - データは端末の localStorage だけ。キーは `nokori:` で始まる（`profiles` / `last` / `data:{id}` / `snap:{id}`）。サーバーなし・ログインなし。
-- **デプロイのたびに `sw.js` の `CACHE`（今は `zubo-v18`）を1つ上げる。**
+- **デプロイのたびに `sw.js` の `CACHE`（今は `zubo-v19`）を1つ上げる。**
 - 機種変更の引き継ぎ：PINから作った鍵でAES-GCM暗号化 → deflate → base64url。`#import=` か `ZUBO:` で始まるコード。QRとコピペの両方。
 - Face ID：WebAuthn のパスキー（`P.fid`）。パスコードがオンのときだけ使える。
 
