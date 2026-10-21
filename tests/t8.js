@@ -7,7 +7,7 @@ const { chromium, devices } = require('/opt/node-tools/node_modules/playwright')
   await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
   await p.goto('http://localhost:8765/');
   await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '1000'); await p.click('[data-pin]'); await p.click('[data-start]');
-  for (const k of '12341234') await p.click(`.sheet .pinpad [data-k="${k}"]`); await p.waitForTimeout(400); await p.click('.sheet [data-later]');
+  for (const k of '12341234') await p.click(`.sheet .pinpad [data-k="${k}"]`); await p.waitForTimeout(400); await p.click('[data-ob-next]'); await p.click('[data-ob-next]'); await p.waitForTimeout(300); await p.click('.sheet [data-later]');
   await p.waitForTimeout(300);
   await p.click('#tabbar [data-view="settings"]'); await p.click('[data-act="faceid"]'); await p.click('.sheet [data-on]');
   await p.waitForTimeout(800);

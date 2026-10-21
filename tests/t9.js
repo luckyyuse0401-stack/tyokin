@@ -2,7 +2,7 @@ const { chromium, devices } = require('/opt/node-tools/node_modules/playwright')
 (async () => { const b = await chromium.launch(); const c = await b.newContext({ ...devices['iPhone 13'] }); await require('./fontroute.js')(c);
  await c.route(/localhost:8765\/$/, async r => { const res = await r.fetch(); r.fulfill({ response: res, body: (await res.text()).replace('</head>', '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;800;900&display=block"></head>') }); });
  const p = await c.newPage(); p.on('pageerror', e => console.log('ERR', e.message));
- await p.goto('http://localhost:8765/'); await p.fill('[data-name]', 'mai'); await p.fill('[data-bal]', '284253'); await p.click('[data-start]'); await p.waitForTimeout(300); await p.waitForTimeout(400); await p.click('.sheet [data-later]');
+ await p.goto('http://localhost:8765/'); await p.fill('[data-name]', 'mai'); await p.fill('[data-bal]', '284253'); await p.click('[data-start]'); await p.click('[data-ob-next]'); await p.click('[data-ob-next]'); await p.waitForTimeout(300); await p.waitForTimeout(400); await p.click('.sheet [data-later]');
  const r = await p.evaluate(() => { D.created='2026-10-11';
   D.rec.push({id:'s',name:'給料',kind:'income',day:25,amount:150000,start:'2026-10-11',skip:[]});
   D.rec.push({id:'c',name:'カード',kind:'expense',day:27,amount:45202,start:'2026-10-11',skip:[]});

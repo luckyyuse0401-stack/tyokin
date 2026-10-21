@@ -8,8 +8,9 @@ const ok = (c, m) => { console.log((c ? 'OK  ' : 'NG  ') + m); if (!c) process.e
   const p = await c.newPage(); const E = (f, a) => p.evaluate(f, a);
   p.on('pageerror', e => ok(false, 'pageerror ' + e.message));
   await p.goto('http://localhost:8765/');
-  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '200000'); await p.click('[data-start]'); await p.waitForTimeout(400);
+  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '200000'); await p.click('[data-start]'); await p.click('[data-ob-next]'); await p.click('[data-ob-next]'); await p.waitForTimeout(400);
   await p.click('.sheet [data-later]'); await p.waitForTimeout(200);
+  await p.evaluate(() => { D.mode = 'pro'; save(); render(); });
   // 使い始めを10日前にして、何日か支出を入れる
   await E(() => {
     const d = n => { const x = new Date(); x.setDate(x.getDate() - n); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };

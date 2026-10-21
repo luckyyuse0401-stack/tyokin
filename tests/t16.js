@@ -8,7 +8,7 @@ const ok = (c, m) => { console.log((c ? 'OK  ' : 'NG  ') + m); if (!c) process.e
   const p = await c.newPage(); const E = (f, a) => p.evaluate(f, a);
   p.on('pageerror', e => ok(false, 'pageerror ' + e.message));
   await p.goto('http://localhost:8765/');
-  await p.fill('[data-name]', '自分'); await p.click('[data-start]'); await p.waitForTimeout(400);
+  await p.fill('[data-name]', '自分'); await p.click('[data-start]'); await p.click('[data-ob-next]'); await p.click('[data-ob-next]'); await p.waitForTimeout(400);
   ok(!!(await p.$('.sheet .sheet-x')), 'シートに×がある');
   await p.click('.sheet .sheet-x'); await p.waitForTimeout(200);
   ok(!(await p.$('.sheet')), '×で閉じる');

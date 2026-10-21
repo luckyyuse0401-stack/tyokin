@@ -224,6 +224,12 @@ function normalize(d) {
   d.pm = Array.isArray(d.pm) ? d.pm.filter(p => p && p.id && p.name) : [];
   for (const p of d.pm) { p.type = p.type === 'card' ? 'card' : 'instant'; if (p.type === 'card') { p.close = Math.min(31, Math.max(0, Number(p.close) || 0)); p.pay = Math.min(31, Math.max(1, Number(p.pay) || 27)); p.off = p.off === 2 ? 2 : 1; } }
   if (!THEMES[d.theme]) d.theme = 'lime';
+  // 使い方：ざっくり / しっかり管理（前からカード・口座・予算を使っている人は、しっかり）
+  if (d.mode !== 'easy' && d.mode !== 'pro') d.mode = d.pm.length || d.acc.length || (d.budget && Object.keys(d.budget).length) ? 'pro' : 'easy';
+  // 今月使えるお金の決め方：自動 / 自分で決める（amount＝毎月、months＝その月だけ）
+  const sp = d.spend && typeof d.spend === 'object' ? d.spend : {};
+  d.spend = { mode: sp.mode === 'fixed' ? 'fixed' : 'auto', amount: Math.max(0, Number(sp.amount) || 0), months: {} };
+  for (const [k, v] of Object.entries(sp.months && typeof sp.months === 'object' ? sp.months : {})) if (/^\d{4}-\d{2}$/.test(k) && Number(v) > 0) d.spend.months[k] = Number(v);
   if (d.stamp !== 'none' && !STAMPS[d.stamp]) d.stamp = 'zero';
   const bud = {};
   for (const [k, v] of Object.entries(d.budget && typeof d.budget === 'object' ? d.budget : {})) if (Number(v) > 0 && catOf('expense', k)) bud[k] = Number(v);
@@ -276,6 +282,37 @@ function cardPending(c) {
 const cardOutstanding = () => D.pm.filter(p => p.type === 'card').reduce((a, c) => a + cardPending(c).reduce((s, x) => s + x.amt, 0), 0);
 const hasCards = () => D.pm.some(p => p.type === 'card');
 const usable = () => balance() - cardOutstanding();
+const isPro = () => D.mode === 'pro';
+
+/* ---------- 今月あと使えるお金 ----------
+   自動：今月の収入 − 毎月の支払い − 貯金したい額（目標から） − 今月もう使ったお金
+   自分で決める：1か月の予算（その月だけの金額があればそれ） − 今月もう使ったお金
+   「使ったお金」はふだんの支出（予定・引き落としは入れない）。カードの引き落としは、記録した買い物との差だけを支払いに数える。 */
+function monthPlan(ym = ymOf(today())) {
+  const t = today();
+  const spent = D.tx.filter(x => isVariable(x) && ymOf(x.date) === ym && x.date <= t).reduce((a, x) => a + x.amount, 0);
+  if (D.spend.mode === 'fixed') {
+    const budget = D.spend.months[ym] || D.spend.amount;
+    return { mode: 'fixed', budget, spent, left: budget - spent, ready: budget > 0 };
+  }
+  const recOf = id => D.rec.find(r => r.id === id);
+  const cardPart = (r, amt, y) => { const c = r?.pm && cardOf(r.pm); return c ? Math.max(0, amt - cardSum(c, y)) : amt; };
+  let inc = 0, out = 0;
+  for (const x of D.tx) {
+    if (ymOf(x.date) !== ym || x.adj) continue;
+    if (x.kind === 'income') inc += x.amount;
+    else if (x.kind === 'expense' && (x.rec || x.plan)) out += x.rec ? cardPart(recOf(x.rec), x.amount, x.ym) : x.amount;
+  }
+  for (const v of virtuals(ym)) {
+    const r = recOf(v.rec), amt = v.amount || (r ? recAmountFor(r, ym) : 0);
+    if (v.kind === 'income') inc += amt; else out += cardPart(r, amt, ym);
+  }
+  let save = 0;
+  const g = D.goal;
+  if (g && g.ym >= ym) save = Math.max(0, Math.ceil((g.amount - usable()) / (monthsBetween(ym, g.ym) + 1) / 100) * 100);
+  const budget = inc - out - save;
+  return { mode: 'auto', inc, out, save, spent, budget, left: budget - spent, ready: inc > 0 };
+}
 
 /* ---------- 口座 ----------
    メイン口座（D.base が最初の残高）＋追加した口座（D.acc）。
@@ -449,45 +486,34 @@ function topBar() {
 }
 
 function viewHome() {
-  const t = today(), ym = ymOf(t), st = monthStats(ym), cards = hasCards(), bal = cards ? usable() : balance();
-  const up = upcoming();
+  const t = today(), ym = ymOf(t), plan = monthPlan(ym);
   const recent = sortTx(D.tx.filter(x => x.date <= t)).slice(0, 5);
-  const upOut = up.filter(x => x.kind === 'expense').reduce((s, x) => s + x.amount, 0);
-
+  const daysLeft = dim(ym) - Number(t.slice(8)) + 1;
+  const money = n => showBal ? `${n < 0 ? '−' : ''}${yen(n)}` : '¥••••••';
+  const used = plan.budget > 0 ? Math.min(1, Math.max(0, plan.spent / plan.budget)) : 0;
   const installTip = isIOS() && !isStandalone()
     ? `<div class="notice n-warn"><div class="ni">${glyph('warn', 2)}</div>
         <div class="nt"><b>このままだとデータが消えることがあります</b>Safariで開いています。共有ボタン →「ホーム画面に追加」して、そこから使ってください。</div></div>` : '';
-
+  const pro = isPro() && multiAcc();
   return `${installTip}
   <div class="zlogo"><b>ZUBO<i></i></b></div>
-  <section class="balance slim">
-    <div class="row"><span class="lbl">${esc(P.name)}の${cards ? '使えるお金' : '残高'} · ${fmtMD(t)}</span><span class="hint">${monthNum(ym)}月の収支 <b class="num ${st.net < 0 ? 'neg' : ''}">${sYen(st.net)}</b></span></div>
-    <div class="row mid"><div class="big num ${showBal ? '' : 'masked'}"><small>¥</small>${showBal ? `${bal < 0 ? '−' : ''}${Math.abs(bal).toLocaleString('ja-JP')}` : '••••••'}</div>${eyeBtn()}</div>
-    ${cards ? `<div class="bal-sub"><div><span>口座の残高${multiAcc() ? `（${accList().length}口座の合計）` : ''}</span><b class="num">${balText(balance())}</b></div><div><span>カードの引き落とし待ち</span><b class="num red">${showBal ? '−' + yen(cardOutstanding()) : '¥••••'}</b></div></div>` : ''}
-    ${multiAcc() ? `<button class="acc-toggle" data-act="acc-open">${accOpen ? '▲ 閉じる' : '▼ 口座ごとに見る'}</button>
-      ${accOpen ? `<div class="acc-list">${accList().map(a => `<div class="r"><span>${esc(a.name)}</span><b class="num">${balText(accBalance(a.id))}</b></div>`).join('')}</div>` : ''}` : ''}
+  <section class="balance slim lv">
+    <div class="k"><button class="lv-t" data-act="spend-set">今月あと使えるお金 ›</button>${eyeBtn()}</div>
+    ${plan.ready ? `<div class="v num ${plan.left < 0 ? 'over' : ''}"><span>${money(plan.left)}</span><small>${plan.left > 0 ? `1日あたり ${showBal ? yen(Math.floor(plan.left / daysLeft)) : '¥••••'}` : plan.left < 0 ? '使いすぎ' : ''}</small></div>
+      <div class="lv-bar ${plan.left < 0 ? 'over' : ''}"><i style="width:${Math.round(used * 100)}%"></i></div>`
+      : `<button class="lv-set" data-act="spend-set">1か月に使っていいお金を決める ›</button>`}
+    <div class="lv-sub"><span>口座のお金 <b class="num">${money(balance())}</b></span>${pro ? `<button class="acc-toggle" data-act="acc-open">${accOpen ? '▲ 閉じる' : '▼ 口座ごと'}</button>` : ''}</div>
+    ${pro && accOpen ? `<div class="acc-list">${accList().map(a => `<div class="r"><span>${esc(a.name)}</span><b class="num">${balText(accBalance(a.id))}</b></div>`).join('')}</div>` : ''}
   </section>
 
   ${padHTML()}
 
   <div class="two">
-    <button class="btn btn-income" data-act="add" data-kind="income">＋ 収入を追加</button>
-    <button class="btn btn-ghost" data-act="add" data-kind="expense">− 昨日以前の支出</button>
+    <button class="btn btn-income" data-act="add" data-kind="income">収入を入れる</button>
+    <button class="btn btn-ghost" data-act="add" data-kind="expense">前の日の分を入れる</button>
   </div>
 
-  ${up.length ? `<section class="callout">
-    <div class="h">これからの引き落とし・予定${upOut ? `<span class="num">−${yen(upOut)}</span>` : ''}</div>
-    ${up.slice(0, 5).map(x => txRow(x)).join('')}
-    ${upOut ? `<div class="foot"><span>引き落とし後の残高</span><b class="num">${balText(bal - upOut)}</b></div>` : ''}
-  </section>` : ''}
-
-  <div class="stats">
-    <div><div class="k">今月の収入</div><div class="v num pos">+${yen(st.inc)}</div></div>
-    <div><div class="k">引き落とし</div><div class="v num">−${yen(st.fixed)}</div></div>
-    <div><div class="k">今月使った金額</div><div class="v num">−${yen(st.spent)}</div></div>
-  </div>
-
-  <div class="sec-head"><h3>最近の履歴</h3><button class="aside" data-act="go" data-view="calendar">カレンダーで見る</button></div>
+  <div class="sec-head"><h3>最近の履歴 <small class="sh-note">タップで直せます</small></h3><button class="aside" data-act="go" data-view="calendar">カレンダーで見る</button></div>
   <div class="list">${recent.length ? recent.map(x => txRow(x)).join('') : '<div class="empty">まだ記録がありません。<br>上のボタンで金額を選んで、なにに使ったかをタップすると登録できます。</div>'}</div>`;
 }
 
@@ -507,12 +533,12 @@ function padHTML() {
     </div>
     <div class="pad-quick">${D.quick.map(v => `<button class="${padFresh && amt === v ? 'on' : ''}" data-act="pad-quick" data-v="${v}">${v.toLocaleString('ja-JP')}</button>`).join('')}</div>
     <div class="pad-keys">${keys.map(k => `<button data-act="pad-key" data-k="${k}">${k}</button>`).join('')}<button class="fn" data-act="pad-back" aria-label="1文字消す">⌫</button></div>
-    ${D.pm.length ? `<div class="pad-pm">${['cash', ...D.pm.map(p => p.id)].map(id => `<button class="${padPmNow() === id ? 'on' : ''}" data-act="pad-pm" data-pm="${id}">${esc(pmLabel(id))}</button>`).join('')}</div>` : ''}
+    ${isPro() && D.pm.length ? `<div class="pad-pm">${['cash', ...D.pm.map(p => p.id)].map(id => `<button class="${padPmNow() === id ? 'on' : ''}" data-act="pad-pm" data-pm="${id}">${esc(pmLabel(id))}</button>`).join('')}</div>` : ''}
     <div class="pad-hint ${amt ? 'on' : ''}">↓ なにに使った？${amt ? ' タップで登録' : ''}</div>
     <div class="pad-cats ${amt ? '' : 'off'}">${CATS.expense.map(c => `<button data-act="pad-cat" data-cat="${c.id}" ${amt ? '' : 'disabled'}>${catArt(c)}${c.label}</button>`).join('')}</div>
-    <div class="pad-foot ${amt ? '' : 'off'}">
+    <div class="pad-mini ${amt ? '' : 'off'}">
       <button data-act="pad-memo" ${amt ? '' : 'disabled'}>メモを付けて登録</button>
-      <button data-act="pad-plain" ${amt ? '' : 'disabled'}>そのまま登録</button>
+      <button data-act="pad-plain" ${amt ? '' : 'disabled'}>カテゴリなしで登録</button>
     </div>
   </section>`;
 }
@@ -522,7 +548,7 @@ function padCommit(cat) {
   if (!amt) return;
   const tx = { id: uid(), date: today(), kind: 'expense', amount: amt };
   if (cat) tx.cat = cat;
-  const pm = D.pm.length ? padPmNow() : 'cash';
+  const pm = isPro() && D.pm.length ? padPmNow() : 'cash';
   if (pm !== 'cash') tx.pm = pm;
   D.tx.push(tx);
   padReset();
@@ -597,7 +623,7 @@ function viewMonthSum(ym) {
       ${open ? `<div class="det">${sortTx(v.items).map(x => txRow(x)).join('')}</div>` : ''}`;
   }).join('');
   const fixedTx = sortTx([...D.tx.filter(x => ymOf(x.date) === ym && x.kind === 'expense' && (x.rec || x.plan)), ...virtuals(ym).filter(v => v.kind === 'expense')], 1);
-  const cardBox = cur ? D.pm.filter(p => p.type === 'card').map(c => {
+  const cardBox = cur && isPro() ? D.pm.filter(p => p.type === 'card').map(c => {
     const next = cardPending(c)[0] || (() => { const ym2 = payYmOf(c, t); return { ym: ym2, amt: cardDue(c, ym2), date: occDate(cardRec(c) || { day: c.pay }, ym2) }; })();
     const n = cardBuys(c, next.ym).length, r = cardRec(c);
     return `<div class="ccard"><div class="h"><div class="ic">${glyph('bank')}</div><div><b>${esc(c.name)}</b><small>${fmtMD(next.date)}に引き落とし</small></div><div class="v num">${yen(next.amt)}<small>次の引き落とし</small></div></div>
@@ -612,7 +638,7 @@ function viewMonthSum(ym) {
   </section>
   ${cardBox}
   ${rows.length ? `<div class="cb">${list}</div>` : '<div class="empty" style="margin-top:14px">この月はまだ記録がありません</div>'}
-  <div style="text-align:center"><button class="setb" data-act="budget-set">${Object.keys(D.budget).length ? '予算を変える' : '＋ 予算を決める（入れたいカテゴリだけ）'}</button></div>
+  ${isPro() || Object.keys(D.budget).length ? `<div style="text-align:center"><button class="setb" data-act="budget-set">${Object.keys(D.budget).length ? '予算を変える' : '＋ 予算を決める（入れたいカテゴリだけ）'}</button></div>` : ''}
   ${fixedTx.length ? `<div class="sec-head"><h3>毎月の支払い</h3></div><div class="list">${fixedTx.map(x => txRow(x)).join('')}</div>` : ''}`;
 }
 
@@ -649,8 +675,8 @@ function viewCalendar() {
     const lines = [];
     if (c.out) lines.push(`<div class="m out num">-${compact(c.out)}</div>`);
     if (c.inc) lines.push(`<div class="m in num">+${compact(c.inc)}</div>`);
-    if (c.plan) lines.push(`<div class="m plan num">予${compact(c.plan)}</div>`);
-    if (c.planInc) lines.push(`<div class="m in num">予+${compact(c.planInc)}</div>`);
+    if (c.plan) lines.push(`<div class="m plan num">引落${compact(c.plan)}</div>`);
+    if (c.planInc) lines.push(`<div class="m in num">入る${compact(c.planInc)}</div>`);
     if (c.todo) lines.push('<div class="m todo">未入力</div>');
     const stamp = noMoney(date) ? stampSvg(D.stamp, 'stamp') : '';
     cells += `<button class="${cls}" data-act="day" data-date="${date}"><div class="n">${i}</div>${stamp || lines.slice(0, 2).join('')}</button>`;
@@ -669,18 +695,18 @@ function viewCalendar() {
   return `${calHead(ym)}
   <div class="sum-card">
     <div class="k">この月の収支</div>
-    <div class="v num ${st.net < 0 ? 'neg' : ''}">${sYen(st.net)}</div>
+    <div class="v num">${sYen(st.net)}</div>
     <div class="row">
       <span>収入 <b class="num">${yen(st.inc)}</b></span>
       <span>引き落とし <b class="num">${yen(st.fixed)}</b></span>
       <span>使った <b class="num">${yen(st.spent)}</b></span>
-      ${st.sched ? `<span>これから <b class="num red">${yen(st.sched)}</b></span>` : ''}
+      ${st.sched ? `<span>これから引き落とし <b class="num red">${yen(st.sched)}</b></span>` : ''}
     </div>
   </div>
   <div class="cal">
     <div class="wk">${WD.map(w => `<div>${w}</div>`).join('')}</div>
     <div class="days">${cells}</div>
-    <div class="legend"><span><i style="border-color:var(--red)"></i>引き落とし日</span><span><i style="border-color:var(--teal)"></i>給料日など</span><span style="color:var(--red)">予＝予定</span></div>
+    <div class="legend"><span><i style="border-color:var(--red)"></i>引き落とし日</span><span><i style="border-color:var(--teal)"></i>給料日など</span><span>入る・引落＝これからの予定</span></div>
   </div>
   ${D.rec.length ? '' : `<div class="tip">設定の「毎月の給料・引き落とし」にカードや家賃を登録すると、カレンダーに<b style="color:var(--red)">赤丸</b>がつきます。<button class="aside" data-act="go" data-view="settings" style="color:var(--teal);font-weight:700;margin-left:4px">登録する</button></div>`}
 
@@ -702,7 +728,8 @@ function viewCalendar() {
    AIは使わず、記録からルールで計算する
    ========================================================= */
 let futSel = null;
-let accOpen = false; // ホームで口座ごとの残高を開いているか
+let accOpen = false;
+let futOpen = false; // 貯金目標のグラフを開いているか // ホームで口座ごとの残高を開いているか
 let calMode = 'cal', sumOpen = null; // カレンダータブ：カレンダー / 今月のまとめ
 const lastDay = ym => `${ym}-${pad(dim(ym))}`;
 const daysBetween = (a, b) => Math.round((parseD(b) - parseD(a)) / 86400000);
@@ -823,7 +850,7 @@ function pickHint() {
     const name = `「${c.label}」`;
     if (prev.days >= 14 && elapsed >= 7 && st.prev > 0) {
       const avg = st.prev / prev.days * 30.4, pace = st.cur / elapsed * dim(cur);
-      if (pace - avg >= Math.max(2000, avg * 0.2)) cands.push({ save: pace - avg, text: say([`${name}が最近増えてます。いつもの月に戻すと`, `今月は${name}がハイペース。ふだん通りに戻すと`, `${name}、今月はいつもより多めです。いつもくらいに抑えると`]) });
+      if (pace - avg >= Math.max(2000, avg * 0.2)) cands.push({ save: pace - avg, text: say([`${name}が最近増えてます。いつもの月に戻すと`, `今月は${name}がいつもより多め。先月くらいに抑えると`, `${name}、今月はいつもより多めです。いつもくらいに抑えると`]) });
     }
     const perMonth = st.count * k, per = st.total / st.count;
     if (perMonth >= 8 && per <= 1000) cands.push({ save: per * 4, text: say([`${name}を週1回減らすと`, `${name}は月${Math.round(perMonth)}回くらい。週に1回がまんすると`, `${name}をお休みする日を週に1日つくると`]) });
@@ -886,21 +913,26 @@ function viewFuture() {
   if (!gi) {
     goalCard = `<button class="goal empty" data-act="goal"><span class="gi">${glyph('target', 1.3)}</span><div><b>目標を決める</b><small>いつまでに・いくら貯めたい？</small></div><span class="chev">›</span></button>`;
   } else {
-    const pct = Math.round(gi.progress * 100), C = 2 * Math.PI * 42;
+    const pct = Math.round(gi.progress * 100);
     let status;
     if (vr.learning) status = `記録が2週間たまると、届くかどうかを計算します<br>（あと${vr.left}日）`;
     else if (gi.expired) status = `期限を過ぎました。<b class="ok">目標を変えてみよう</b>`;
-    else if (gi.short <= 0) status = `このペースなら<b class="ok">届きます</b>${gi.reach && gi.reach < gi.ym ? `<br>${ymLabel(gi.reach)}ごろに到達` : ''}`;
+    else if (gi.short <= 0) status = `このペースなら届きます${gi.reach && gi.reach < gi.ym ? `（${ymLabel(gi.reach)}ごろ）` : ''}`;
     else status = `今のペースだと <b>${yen(gi.short)} 足りない</b><br>月 ${yen(gi.perMonth)} 減らせば届く`;
-    goalCard = `<button class="goal" data-act="goal">
-      <div class="ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="4"/><circle cx="50" cy="50" r="42" fill="none" stroke="#C8AE7C" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(C * gi.progress).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 50 50)"/></svg><b>${pct}%</b></div>
-      <div class="gtxt"><div class="t">${ymLabel(gi.ym)}までに</div><div class="v num">${yen(gi.amount)}</div><div class="s">${status}</div></div>
+    goalCard = `<button class="gbig" data-act="goal">
+      <div class="t">${ymLabel(gi.ym)}までに</div><div class="v num">${yen(gi.amount)}</div>
+      <div class="bar"><i style="width:${pct}%"></i></div><div class="s"><span>今 ${yen(Math.max(0, usable()))}</span><span>${pct}%</span></div>
+      <div class="st ${!vr.learning && !gi.expired && gi.short <= 0 ? 'ok' : ''}">${status}</div>
     </button>`;
   }
 
   return `<div class="page-head" style="margin-top:6px"><h2>今後の貯金額</h2>${gi ? '<button class="pill" data-act="goal">目標を変える</button>' : ''}</div>
   ${goalCard}
-  ${vr.learning ? `<section class="chartcard">
+  <section class="hintc ${hint.wait ? 'wait' : ''}">
+    <p>${hint.text}<small>${esc(hint.sub)}</small></p>
+  </section>
+  <button class="gmore" data-act="fut-open">${futOpen ? '▲ グラフを閉じる' : '▼ これからの残高のグラフを見る'}</button>
+  ${!futOpen ? '' : vr.learning ? `<section class="chartcard">
     <div class="h"><b>これからの残高</b></div>
     <div class="learn"><b>あと${vr.left}日で予測が出ます</b>使い始めの数日分だけで1か月を計算すると大きくズレるので、記録が2週間たまってから予測します。</div>
   </section>` : `<section class="chartcard">
@@ -908,11 +940,8 @@ function viewFuture() {
     ${futureChart(pts, futSel, gi?.amount)}
     <div class="pick"><span>${selLabel}</span><b class="num">${sel.v < 0 ? '−' : ''}${yen(sel.v)}</b></div>
     <p class="note" style="margin:8px 2px 0">${sel.kind === 'past' ? '実際の記録の月末残高です' : `今より ${sYen(diff)}`}${sel.kind !== 'past' ? (vr.learning ? ` ・ ふだんの支出は、記録が2週間たまってから計算に入れます（あと${vr.left}日）` : ` ・ ふだんの支出は月 ${yen(vr.daily * 30.4)} として計算`) : ''}</p>
-  </section>`}
-  <section class="hintc ${hint.wait ? 'wait' : ''}">
-    <p>${hint.text}<small>${esc(hint.sub)}</small></p>
-  </section>
-  <p class="note">予測は、給料・引き落としなどの毎月の予定と、ここ3か月のふだんの支出（引き落とし・交通・病院などを除く）の平均から計算しています。</p>`;
+    <p class="note" style="margin:10px 2px 0">予測は、給料・引き落としなどの毎月の予定と、ここ3か月のふだんの支出（引き落とし・交通・病院などを除く）の平均から計算しています。</p>
+  </section>`}`;
 }
 
 function openGoal() {
@@ -954,21 +983,24 @@ function openGoal() {
 function viewSettings() {
   const bal = balance();
   const recs = D.rec.slice().sort((a, b) => a.day - b.day);
+  const pro = isPro();
   return `<div class="page-head" style="margin-top:6px"><h2>設定</h2></div>
-  <section class="set-balance">
-    <div class="k" style="display:flex;justify-content:space-between;align-items:center">${hasCards() ? '使えるお金' : '現在残高'} ${eyeBtn()}</div>
-    <div class="v num">${balText(hasCards() ? usable() : bal)}</div>
-    ${hasCards() ? `<div class="k" style="margin-top:6px">口座の残高 ${balText(bal)} · カードの引き落とし待ち ${showBal ? '−' + yen(cardOutstanding()) : '¥••••'}</div>` : ''}
-  </section>
+  <div class="sec-head" style="margin-top:4px"><h3>使い方</h3></div>
+  <div class="mode-pick">
+    <button class="${pro ? '' : 'on'}" data-act="mode" data-m="easy"><b>ざっくり</b><small>入力して、今月あといくら使えるか見るだけ</small></button>
+    <button class="${pro ? 'on' : ''}" data-act="mode" data-m="pro"><b>しっかり管理</b><small>カード・PayPay・口座・予算・毎年の支払いも使う</small></button>
+  </div>
+  <p class="note">いつでも切り替えられます。切り替えても記録は消えません。</p>
 
   <div class="menu" style="margin-top:14px">
     <button data-act="adjust"><div class="l"><b>残高を合わせる</b><small>入れ忘れでズレたら、本当の残高を入れるだけ</small></div><span class="chev">›</span></button>
     <button data-act="look-set"><div class="l"><b>アプリの色・スタンプ</b><small>${THEMES[D.theme].name} · お金を使わなかった日は「${D.stamp === 'none' ? 'なし' : STAMPS[D.stamp].name}」</small></div><span class="chev">›</span></button>
-    <button data-act="quick-set"><div class="l"><b>よく使う金額</b><small>${D.quick.map(v => v.toLocaleString('ja-JP')).join(' · ')}</small></div><span class="chev">›</span></button>
+    <button data-act="spend-set"><div class="l"><b>今月使えるお金の決め方</b><small>${D.spend.mode === 'fixed' ? `自分で決める · 1か月 ${yen(D.spend.amount)}` : '自動で計算'}</small></div><span class="chev">›</span></button>
+    ${pro ? `<button data-act="quick-set"><div class="l"><b>よく使う金額</b><small>${D.quick.map(v => v.toLocaleString('ja-JP')).join(' · ')}</small></div><span class="chev">›</span></button>` : ''}
     <button data-act="guide"><div class="l"><b>使い方ガイド</b><small>入れ方・カード・予測の見方など</small></div><span class="chev">›</span></button>
   </div>
 
-  <div class="sec-head"><h3>口座</h3>${multiAcc() ? `<span class="aside">合計 ${balText(balance())}</span>` : ''}</div>
+  ${pro ? `<div class="sec-head"><h3>口座</h3>${multiAcc() ? `<span class="aside">合計 ${balText(balance())}</span>` : ''}</div>
   <div class="menu">
     ${accList().map(a => `<button data-act="acc-edit" data-id="${a.id}"><div class="ico" style="width:38px;height:38px">${glyph('bank')}</div>
       <div class="l"><b>${esc(a.name)}</b>${a.id === 'main' ? '<small>現金・ふだんの支出</small>' : ''}</div><div class="r num">${balText(accBalance(a.id))}</div><span class="chev">›</span></button>`).join('')}
@@ -981,7 +1013,7 @@ function viewSettings() {
       <div class="l"><b>${esc(p.name)}</b><small>${p.type === 'card' ? closeText(p) : 'その場で残高から引く'}${multiAcc() ? ` · ${esc(accName(validAcc(p.acc)))}` : ''}</small></div><span class="chev">›</span></button>`).join('')}
     <button class="add" data-act="pm-add">＋ カード・PayPayなどを追加</button>
   </div>
-  <p class="note">登録すると、支出を入れるときに払い方を選べます。カードで払った分は、引き落とし日にまとめて引かれます。何も登録しなければ、今まで通りです。</p>
+  <p class="note">登録すると、支出を入れるときに払い方を選べます。カードで払った分は、引き落とし日にまとめて引かれます。</p>` : ''}
 
   <div class="sec-head"><h3>毎月の給料・引き落とし</h3></div>
   <div class="menu">
@@ -1008,6 +1040,7 @@ function viewSettings() {
   <div class="menu">
     <button data-act="transfer-qr"><div class="l"><b>新しいスマホに引き継ぐ</b><small>QRを出して、新しいスマホで映すだけ</small></div><span class="chev">›</span></button>
     <button data-act="transfer-copy"><div class="l"><b>引き継ぎをコピー</b><small>同じスマホでアイコンを入れ直すときに</small></div><span class="chev">›</span></button>
+    <button data-act="csv"><div class="l"><b>他の家計簿アプリから取り込む</b><small>マネーフォワード ME・Zaim などのCSV</small></div><span class="chev">›</span></button>
     <button data-act="import"><div class="l"><b>引き継ぎを読み込む</b><small>QR・貼り付け・ファイルから</small></div><span class="chev">›</span></button>
     <button data-act="export"><div class="l">バックアップをファイルに保存</div><span class="chev">›</span></button>
   </div>
@@ -1096,6 +1129,10 @@ app.addEventListener('click', e => {
     case 'adjust': openAdjust(); break;
     case 'quick-set': openQuickSet(); break;
     case 'pm-add': openPm(); break;
+    case 'mode': D.mode = ds_.m; save(); render(); toast(D.mode === 'pro' ? 'しっかり管理にしました' : 'ざっくりにしました'); break;
+    case 'spend-set': openSpend(); break;
+    case 'csv': openCsv(); break;
+    case 'fut-open': futOpen = !futOpen; render(); break;
     case 'acc-add': openAcc(); break;
     case 'acc-edit': openAcc(ds_.id); break;
     case 'acc-open': accOpen = !accOpen; render(); break;
@@ -1193,7 +1230,7 @@ function openEntry(o) {
   const quick = !edit && !isRec && o.quick && o.amount > 0;
   let date = edit ? edit.date : (o.date || today());
   let cat = edit?.cat || null;
-  let pm = edit ? (edit.pm || 'cash') : (D.pm.length ? padPmNow() : 'cash');
+  let pm = edit ? (edit.pm || 'cash') : (isPro() && D.pm.length ? padPmNow() : 'cash');
   let acc = validAcc(edit?.acc);
   const amount = edit ? edit.amount : (o.amount || '');
   const memo = edit?.memo || '';
@@ -1220,7 +1257,7 @@ function openEntry(o) {
       <div class="label">${kind === 'income' ? 'どんな収入？' : 'なにに使った？'}${quick ? '<em>タップでそのまま登録</em>' : ''}</div>
       <div class="cats">${cats.map(c => `<button class="cat ${c.id === cat ? 'on' : ''}" data-cat="${c.id}">${kind === 'expense' ? catArt(c) : glyph(c.icon)}${c.label}</button>`).join('')}</div>`}
     ${kind === 'income' && !isRec ? accChips(acc, 'どの口座に入った？') : ''}
-    ${kind === 'expense' && !isRec && D.pm.length ? `<div class="label">払い方</div><div class="pad-pm">${['cash', ...D.pm.map(p => p.id)].map(id => `<button class="${pm === id ? 'on' : ''}" data-pm="${id}">${esc(pmLabel(id))}</button>`).join('')}</div>` : ''}
+    ${kind === 'expense' && !isRec && isPro() && D.pm.length ? `<div class="label">払い方</div><div class="pad-pm">${['cash', ...D.pm.map(p => p.id)].map(id => `<button class="${pm === id ? 'on' : ''}" data-pm="${id}">${esc(pmLabel(id))}</button>`).join('')}</div>` : ''}
     <div class="label">メモ（なくてもOK）</div>
     <input class="field" maxlength="40" placeholder="${kind === 'income' ? '例：お祝い、メルカリ' : '例：ランチ、Amazon'}" value="${esc(memo)}" data-memo enterkeyhint="done">
     ${suggestions.length && !isRec ? `<div class="suggest">${suggestions.map(m => `<button data-sug="${esc(m)}">${esc(m)}</button>`).join('')}</div>` : ''}
@@ -1363,8 +1400,260 @@ function openAdjust() {
   });
 }
 
+/* ---------- 他の家計簿アプリから取り込む（CSV） ----------
+   マネーフォワード ME・Zaim は自動で読む。知らない形式は、どの列が日付・金額かを選んでもらう（形式は覚えておく）。
+   取り込んでも今の残高は変えない（過去の記録だけ増やし、そのぶん最初の残高をずらす）。 */
+function parseCsv(text) {
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; continue; }
+    if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+    else f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows.map(r => r.map(v => v.trim())).filter(r => r.some(v => v));
+}
+function csvDate(v) {
+  const m = halfWidth(v || '').match(/(\d{4})\s*[\/\-年.]\s*(\d{1,2})\s*[\/\-月.]\s*(\d{1,2})/);
+  if (!m) return null;
+  const d = `${m[1]}-${pad(Number(m[2]))}-${pad(Number(m[3]))}`;
+  return Number(m[2]) >= 1 && Number(m[2]) <= 12 && Number(m[3]) >= 1 && Number(m[3]) <= 31 ? d : null;
+}
+function csvAmt(v) {
+  let t = halfWidth(v || '').replace(/[¥円,\s]/g, '').replace(/[−ー–]/g, '-');
+  let neg = false;
+  if (/^\(.*\)$/.test(t)) { neg = true; t = t.slice(1, -1); }
+  const n = Number(t);
+  return Number.isFinite(n) ? Math.round(neg ? -n : n) : NaN;
+}
+const CSV_CAT_RULES = [
+  ['conv', /コンビニ/], ['cafe', /カフェ|喫茶|スタバ/], ['drink', /飲み会|居酒屋|飲酒|お酒|バー/],
+  ['beauty', /美容|コスメ|化粧|ヘア|ネイル/], ['date', /デート|交際/],
+  ['health', /医療|病院|薬|健康|クリニック/], ['trans', /交通|電車|バス|タクシー|ガソリン|駐車|高速|自動車/],
+  ['daily', /日用品|ドラッグ|消耗品|雑貨/], ['fun', /趣味|娯楽|レジャー|旅行|書籍|映画|ゲーム|教養|本/],
+  ['shop', /衣服|服|ファッション|買い物|ショッピング|家具|家電|Amazon/i], ['food', /外食|食費|食事|ランチ|ごはん|食料品|スーパー/],
+];
+// 細かい方の分類（「大項目 / 中項目」の中項目）から先に見る
+const csvGuessCat = t => {
+  for (const part of [...t.split(' / ').reverse(), t]) { const hit = CSV_CAT_RULES.find(([, re]) => re.test(part)); if (hit) return hit[0]; }
+  return 'other';
+};
+function csvKnown(h) {
+  const ix = n => h.indexOf(n);
+  if (ix('日付') >= 0 && ix('金額（円）') >= 0 && ix('大項目') >= 0) return {
+    name: 'マネーフォワード ME', date: ix('日付'), amount: ix('金額（円）'), inc: -1, sign: 'minus',
+    memo: [ix('内容'), ix('メモ')].filter(i => i >= 0), cat: [ix('大項目'), ix('中項目')].filter(i => i >= 0),
+    skip: [[ix('計算対象'), ['0']], [ix('振替'), ['1']]].filter(([i]) => i >= 0), pay: ix('保有金融機関'),
+  };
+  if (ix('日付') >= 0 && ix('支出') >= 0 && ix('収入') >= 0 && ix('カテゴリ') >= 0) return {
+    name: 'Zaim', date: ix('日付'), amount: ix('支出'), inc: ix('収入'), sign: 'split',
+    memo: [ix('品目'), ix('お店'), ix('メモ')].filter(i => i >= 0), cat: [ix('カテゴリ'), ix('カテゴリの内訳')].filter(i => i >= 0),
+    skip: [[ix('方法'), ['transfer', 'balance', '振替', '残高調整']]].filter(([i]) => i >= 0), pay: ix('支払元'),
+  };
+  return null;
+}
+function csvBuild(rows, fmt) {
+  const t = today(), out = []; let skipped = 0, bad = 0;
+  for (const r of rows) {
+    if (fmt.skip?.some(([i, vals]) => vals.includes(r[i]))) { skipped++; continue; }
+    const date = csvDate(r[fmt.date]);
+    let kind, amount;
+    if (fmt.sign === 'split') {
+      const e = Math.abs(csvAmt(r[fmt.amount]) || 0), n = fmt.inc >= 0 ? Math.abs(csvAmt(r[fmt.inc]) || 0) : 0;
+      if (e) { kind = 'expense'; amount = e; } else if (n) { kind = 'income'; amount = n; }
+    } else {
+      const a = csvAmt(r[fmt.amount]);
+      if (a) { kind = fmt.sign === 'all' || a < 0 ? 'expense' : 'income'; amount = Math.abs(a); }
+    }
+    if (!date || !kind || !amount || date > t) { bad++; continue; }
+    const memo = (fmt.memo || []).map(i => r[i]).find(v => v) || '';
+    const src = (fmt.cat || []).map(i => r[i]).filter(Boolean).join(' / ');
+    out.push({ date, kind, amount, memo: memo.slice(0, 40), src });
+  }
+  return { list: out, skipped, bad };
+}
+function openCsv({ after } = {}) {
+  const done = () => { closeSheet(); render(); after?.(); };
+  openSheet(`<h3>他の家計簿アプリから取り込む</h3>
+    <p class="lead">マネーフォワード ME・Zaim などで書き出したCSVファイルを選んでください。取り込む前に中身を確認できます。</p>
+    <p class="note">取り込んでも、今の残高は変わりません（過去の記録だけ増えます）。過去の記録があると、貯金目標の予測がすぐ使えるようになります。</p>
+    <div class="stack"><button class="btn btn-primary" data-pick>ファイルを選ぶ</button>${after ? '<button class="btn btn-ghost" data-skip>あとで</button>' : ''}</div>
+    <input type="file" accept=".csv,text/csv,text/plain" hidden data-file>`,
+  s => {
+    const inp = $('[data-file]', s);
+    $('[data-pick]', s).onclick = () => inp.click();
+    $('[data-skip]', s)?.addEventListener('click', done);
+    inp.onchange = async () => {
+      const file = inp.files[0]; if (!file) return;
+      const buf = await file.arrayBuffer();
+      let text;
+      try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch { text = new TextDecoder('shift_jis').decode(buf); }
+      const rows = parseCsv(text.replace(/^\uFEFF/, ''));
+      if (rows.length < 2) { toast('読み込める行がありませんでした'); return; }
+      csvStart(rows, after);
+    };
+  });
+}
+function csvStart(rows, after) {
+  let head = rows[0];
+  const hasHead = !head.some(v => csvDate(v));
+  const data = hasHead ? rows.slice(1) : rows;
+  if (!hasHead) head = head.map((_, i) => `${String.fromCharCode(65 + i)}列`);
+  const sig = head.join('|');
+  D.csvFmt ||= {};
+  const fmt = csvKnown(head) || D.csvFmt[sig];
+  if (fmt) return csvCats(data, fmt, head, sig, after);
+  // 知らない形式：どの列が何かを選んでもらう
+  const L = i => String.fromCharCode(65 + i);
+  const cols = head.map((h, i) => `<option value="${i}">${L(i)}列${h && h !== `${L(i)}列` ? `（${esc(h.slice(0, 10))}）` : ''}</option>`).join('');
+  const guess = re => head.findIndex(h => re.test(h));
+  let sign = 'minus';
+  openSheet(`<h3>CSVを取り込む</h3>
+    <p class="lead">知らない形式だったので、どの列が何か教えてください。（次からは自動で読み込みます）</p>
+    <div class="label">ファイルの最初の3行</div>
+    <div class="pv-wrap"><table class="pv"><tr>${head.map((h, i) => `<th>${L(i)} ${esc(h.slice(0, 8))}</th>`).join('')}</tr>${data.slice(0, 3).map(r => `<tr>${head.map((_, i) => `<td>${esc((r[i] || '').slice(0, 14))}</td>`).join('')}</tr>`).join('')}</table></div>
+    <div class="mp">
+      <span>日付</span><select class="field" data-c="date">${cols}</select>
+      <span data-amt-label>金額</span><select class="field" data-c="amount">${cols}</select>
+      <span data-inc-label>収入の列</span><select class="field" data-c="inc">${cols}</select>
+      <span>内容・メモ</span><select class="field" data-c="memo"><option value="-1">なし</option>${cols}</select>
+      <span>カテゴリ</span><select class="field" data-c="cat"><option value="-1">なし</option>${cols}</select>
+    </div>
+    <div class="label">支出と収入の見分け方</div>
+    <div class="chips"><button data-sg="minus">マイナスが支出</button><button data-sg="split">支出と収入で列が別</button><button data-sg="all">全部支出</button></div>
+    <div class="stack"><button class="btn btn-primary" data-next>次へ（カテゴリの対応）</button></div>`,
+  s => {
+    const sel = k => $(`[data-c="${k}"]`, s);
+    const pre = { date: guess(/日付|日時|date/i), amount: guess(/金額|支出|amount/i), inc: guess(/収入|入金/), memo: guess(/内容|品目|メモ|摘要|お店|店/), cat: guess(/カテゴリ|分類|項目|費目/) };
+    for (const [k, v] of Object.entries(pre)) if (v >= 0) sel(k).value = String(v);
+    if (pre.date < 0) sel('date').value = String(Math.max(0, head.findIndex((_, i) => data.slice(0, 5).some(r => csvDate(r[i])))));
+    const upd = () => {
+      $$('[data-sg]', s).forEach(b => b.classList.toggle('on', b.dataset.sg === sign));
+      sel('inc').hidden = $('[data-inc-label]', s).hidden = sign !== 'split';
+      $('[data-amt-label]', s).textContent = sign === 'split' ? '支出の列' : '金額';
+    };
+    $$('[data-sg]', s).forEach(b => b.onclick = () => { sign = b.dataset.sg; upd(); });
+    upd();
+    $('[data-next]', s).onclick = () => {
+      const n = k => Number(sel(k).value);
+      const f = { name: 'このファイルの形式', date: n('date'), amount: n('amount'), inc: sign === 'split' ? n('inc') : -1, sign, memo: n('memo') >= 0 ? [n('memo')] : [], cat: n('cat') >= 0 ? [n('cat')] : [], skip: [], pay: -1 };
+      if (!csvBuild(data, f).list.length) { toast('この設定だと読める行がありません。日付と金額の列を確かめてください'); return; }
+      csvCats(data, f, head, sig, after);
+    };
+  });
+}
+function csvCats(data, fmt, head, sig, after) {
+  const { list, skipped, bad } = csvBuild(data, fmt);
+  if (!list.length) { toast('読める行がありませんでした'); return; }
+  D.csvCat ||= {};
+  const cnt = {};
+  for (const x of list) if (x.kind === 'expense') cnt[x.src || '（なし）'] = (cnt[x.src || '（なし）'] || 0) + 1;
+  const srcs = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]);
+  const map = {};
+  for (const c of srcs) map[c] = D.csvCat[c] || (c === '（なし）' ? 'other' : csvGuessCat(c));
+  const opts = c => CATS.expense.map(k => `<option value="${k.id}" ${map[c] === k.id ? 'selected' : ''}>${k.label}</option>`).join('');
+  const exp = list.filter(x => x.kind === 'expense'), inc = list.filter(x => x.kind === 'income');
+  const sum = a => a.reduce((t, x) => t + x.amount, 0);
+  const dates = list.map(x => x.date).sort();
+  const key = x => `${x.date}|${x.kind}|${x.amount}|${x.memo || ''}`;
+  const have = new Set(D.tx.filter(x => x.imp).map(key));
+  const fresh = list.filter(x => !have.has(key(x)));
+  const offerPro = !isPro() && fmt.pay >= 0;
+  let pro = false;
+  openSheet(`<h3>CSVを取り込む</h3>
+    <div class="okbadge">✓ ${esc(fmt.name)}で読み込みました</div>
+    <div class="csv-sum">
+      <div class="r"><span>期間</span>${fmtMD(dates[0])}〜${fmtMD(dates[dates.length - 1])}（${dates[0].slice(0, 4)}年〜）</div>
+      <div class="r"><span>支出</span>${exp.length}件 ${yen(sum(exp))}</div>
+      <div class="r"><span>収入</span>${inc.length}件 ${yen(sum(inc))}</div>
+      ${skipped + bad ? `<div class="r"><span>取り込まないもの</span>${skipped ? `振替など ${skipped}件` : ''}${skipped && bad ? '・' : ''}${bad ? `読めない・先の日付 ${bad}件` : ''}</div>` : ''}
+      ${list.length - fresh.length ? `<div class="r"><span>もう取り込み済み</span>${list.length - fresh.length}件</div>` : ''}
+    </div>
+    ${srcs.length ? `<div class="label">カテゴリの対応（変えられます）</div>
+    <div class="map">${srcs.map((c, i) => `<div class="mr"><span>${esc(c)}<small>${cnt[c]}件</small></span><select class="field" data-m="${i}">${opts(c)}</select></div>`).join('')}</div>` : ''}
+    ${offerPro ? `<label class="pro-offer"><input type="checkbox" data-pro><span><b>しっかり管理にする</b><small>このファイルにはカード・口座の情報があります。カードや口座ごとに管理したい人向けです（あとからでも変えられます）。</small></span></label>` : ''}
+    <div class="stack"><button class="btn btn-primary" data-go ${fresh.length ? '' : 'disabled'}>${fresh.length}件を取り込む</button>${after ? '<button class="btn btn-ghost" data-skip>取り込まずに進む</button>' : ''}</div>`,
+  s => {
+    $$('[data-m]', s).forEach(e => e.onchange = () => { map[srcs[Number(e.dataset.m)]] = e.value; });
+    $('[data-pro]', s)?.addEventListener('change', e => { pro = e.target.checked; });
+    $('[data-skip]', s)?.addEventListener('click', () => { closeSheet(); render(); after?.(); });
+    $('[data-go]', s).onclick = () => {
+      const added = fresh.map(x => {
+        const tx = { id: uid(), date: x.date, kind: x.kind, amount: x.amount, imp: 1 };
+        if (x.kind === 'expense') tx.cat = map[x.src || '（なし）'] || 'other';
+        else tx.cat = /給|賞与|ボーナス/.test(x.src + x.memo) ? 'salary' : 'other';
+        if (x.memo) tx.memo = x.memo;
+        return tx;
+      });
+      const shift = added.reduce((a, x) => a + sv(x), 0);
+      D.tx.push(...added); D.base -= shift; // 今の残高は変えない
+      const oldCreated = D.created;
+      if (dates[0] < (D.created || today())) D.created = dates[0];
+      if (fmt.name === 'このファイルの形式') D.csvFmt[sig] = fmt;
+      for (const c of srcs) if (c !== '（なし）') D.csvCat[c] = map[c];
+      if (pro) D.mode = 'pro';
+      save(); closeSheet(); render();
+      toast(`${added.length}件を取り込みました`, () => { const ids = new Set(added.map(x => x.id)); D.tx = D.tx.filter(x => !ids.has(x.id)); D.base += shift; D.created = oldCreated; save(); render(); });
+      after?.();
+    };
+  });
+}
+
+// 今月使えるお金の決め方
+function openSpend() {
+  const ym = ymOf(today());
+  let mode = D.spend.mode, scope = D.spend.months[ym] ? 'month' : 'all';
+  openSheet(`<h3>今月使えるお金の決め方</h3>
+    <div class="ty"><button data-m="auto"><b>自動で計算</b><small>給料・毎月の支払い・貯金目標から</small></button><button data-m="fixed"><b>自分で決める</b><small>1か月◯円まで、と決める</small></button></div>
+    <div data-fixed>
+      <div class="label">1か月に使っていいお金</div>
+      <div class="with-unit"><input class="field num" inputmode="numeric" placeholder="例：80000" value="${(D.spend.months[ym] || D.spend.amount || '') && (D.spend.months[ym] || D.spend.amount).toLocaleString('ja-JP')}" data-amt><span>円</span></div>
+      <div class="chips"><button data-sc="all">毎月この金額</button><button data-sc="month">${monthNum(ym)}月だけ変える</button></div>
+    </div>
+    <div class="calc" data-calc></div>
+    <p class="note" data-note></p>
+    <div class="stack"><button class="btn btn-primary" data-save>保存</button></div>`,
+  s => {
+    const amtIn = $('[data-amt]', s);
+    const upd = () => {
+      $$('[data-m]', s).forEach(b => b.classList.toggle('on', b.dataset.m === mode));
+      $$('[data-sc]', s).forEach(b => b.classList.toggle('on', b.dataset.sc === scope));
+      $('[data-fixed]', s).hidden = mode !== 'fixed';
+      const old = D.spend;
+      D.spend = mode === 'fixed' ? { ...old, mode, amount: toInt(amtIn.value) || old.amount } : { ...old, mode };
+      const p = monthPlan(ym);
+      D.spend = old;
+      const row = (k, v, cls = '') => `<div class="${cls}">${k}<b class="num">${v}</b></div>`;
+      $('[data-calc]', s).innerHTML = mode === 'fixed'
+        ? row('1か月の予算', yen(toInt(amtIn.value))) + row('今月もう使った', '−' + yen(p.spent)) + row('あと使えるお金', `${p.left < 0 ? '−' : ''}${yen(toInt(amtIn.value) - p.spent)}`, 't')
+        : row('今月の給料・収入', yen(p.inc)) + row('毎月の支払い（家賃・カードなど）', '−' + yen(p.out)) + row('貯金したい額（目標から）', '−' + yen(p.save)) + row('今月もう使った', '−' + yen(p.spent)) + row('あと使えるお金', `${p.left < 0 ? '−' : ''}${yen(p.left)}`, 't');
+      $('[data-note]', s).innerHTML = mode === 'fixed'
+        ? 'ふだんの支出だけで数えます。家賃やカードの引き落としなど「毎月の支払い」は入れません。'
+        : p.inc ? '給料と毎月の支払いは「毎月の給料・引き落とし」から、貯金したい額は貯金目標から計算しています。'
+        : '給料がまだ登録されていません。設定 →「毎月の給料・引き落とし」に給料を入れるか、「自分で決める」を選んでください。';
+    };
+    $$('[data-m]', s).forEach(b => b.onclick = () => { mode = b.dataset.m; upd(); if (mode === 'fixed' && !amtIn.value) amtIn.focus(); });
+    $$('[data-sc]', s).forEach(b => b.onclick = () => { scope = b.dataset.sc; upd(); });
+    amtIn.addEventListener('input', upd);
+    upd();
+    $('[data-save]', s).onclick = () => {
+      if (mode === 'fixed') {
+        const v = toInt(amtIn.value);
+        if (!v) { shake(amtIn.parentElement); amtIn.focus(); return; }
+        if (scope === 'month') { D.spend.months[ym] = v; if (!D.spend.amount) D.spend.amount = v; }
+        else { D.spend.amount = v; delete D.spend.months[ym]; }
+      }
+      D.spend.mode = mode;
+      save(); closeSheet(); render(); toast('保存しました');
+    };
+  });
+}
+
 // 口座を選ぶボタン（口座が2つ以上のときだけ出す）
-const accChips = (sel, label = 'どの口座？') => multiAcc() ? `<div class="label">${label}</div><div class="chips acc-chips">${accList().map(a => `<button class="${a.id === sel ? 'on' : ''}" data-acc="${a.id}">${esc(a.name)}</button>`).join('')}</div>` : '';
+const accChips = (sel, label = 'どの口座？') => isPro() && multiAcc() ? `<div class="label">${label}</div><div class="chips acc-chips">${accList().map(a => `<button class="${a.id === sel ? 'on' : ''}" data-acc="${a.id}">${esc(a.name)}</button>`).join('')}</div>` : '';
 function bindAccChips(s, set) {
   $$('[data-acc]', s).forEach(b => b.onclick = () => { set(b.dataset.acc); $$('[data-acc]', s).forEach(x => x.classList.toggle('on', x === b)); });
 }
@@ -1411,9 +1700,13 @@ function openPm(id) {
   let type = p?.type || 'card', acc = validAcc(p?.acc);
   const cur = p?.type === 'card' ? { close: p.close, off: p.off, pay: p.pay } : CLOSE_PRESETS[0];
   let preset = CLOSE_PRESETS.findIndex(c => c.close === cur.close && c.off === cur.off && c.pay === cur.pay);
+  // つなげられる引き落とし予定（まだカードとつながっていない毎月の支出）
+  const linkable = D.rec.filter(r => r.kind === 'expense' && r.freq !== 'year' && (!r.pm || (p && r.pm === p.id)));
+  let link = (p && cardRec(p)?.id) || 'new';
   openSheet(`<h3>${p ? '支払い方法を編集' : '支払い方法を追加'}</h3>
     <div class="label">名前</div><input class="field" maxlength="16" placeholder="例：楽天カード、PayPay" value="${esc(p?.name || '')}" data-name>
-    <div class="label">種類</div><div class="seg"><button data-t="card">クレジットカード</button><button data-t="instant">PayPay残高など</button></div>
+    <div class="label">どんな払い方？</div>
+    <div class="ty"><button data-t="card"><b>クレジットカード</b><small>あとでまとめて口座から引き落とし</small></button><button data-t="instant"><b>PayPay・デビット</b><small>払ったときにすぐ減る</small></button></div>
     <div data-card>
       <div class="label">締め日と引き落とし日</div>
       <div class="chips">${CLOSE_PRESETS.map((c, i) => `<button data-pre="${i}">${closeText(c)}</button>`).join('')}<button data-pre="-1">自分で入れる</button></div>
@@ -1422,18 +1715,33 @@ function openPm(id) {
         <div><div class="label">引き落とし</div><div class="when"><select class="field" data-off><option value="1">翌月</option><option value="2">翌々月</option></select><div class="with-unit"><input class="field num" inputmode="numeric" value="${cur.pay}" data-pay><span>日</span></div></div></div>
       </div>
       <p class="note">カードの明細や公式サイトに「◯日締め・翌月◯日払い」と書いてあります。締め日が月末なら0を入れてください。</p>
+      ${linkable.length ? `<div class="label">もう登録してある引き落とし予定とつなぐ？</div>
+      <div class="chips">${linkable.map(r => `<button data-link="${r.id}">${esc(r.name)}（毎月${r.day}日）</button>`).join('')}<button data-link="new">つながない（新しく作る）</button></div>
+      <p class="note" style="margin-top:4px">つなぐと、このカードで払った分がその予定の金額に自動で入ります。二重には引かれません。</p>` : ''}
     </div>
-    <p class="note" data-instant>PayPay残高やデビットカードのように、払ったその場で口座から減るものです。</p>
+    <div class="ex" data-instant><b>例：PayPayで1,000円払う</b><br>→ その場で、残高から1,000円減ります。<br>締め日や引き落とし日の設定はいりません。</div>
     ${accChips(acc, 'どの口座から引かれる？（PayPayはチャージ元）')}
     <div class="stack"><button class="btn btn-primary" data-save>保存</button>${p ? '<button class="btn btn-danger" data-del>この支払い方法を削除</button>' : ''}</div>`,
   s => {
     $('[data-off]', s).value = String(cur.off);
     bindAccChips(s, v => { acc = v; });
+    const nameIn = $('[data-name]', s);
+    const guessLink = () => {
+      // 名前が似ている予定があれば、それを最初から選んでおく（例：三井住友カード → 三井住友）
+      if (p || picked) return;
+      const n = nameIn.value.trim().replace(/カード$/, '');
+      const hit = n.length >= 2 && linkable.find(r => r.name.includes(n) || n.includes(r.name.replace(/カード$/, '')));
+      link = hit ? hit.id : 'new';
+    };
+    let picked = false;
+    $$('[data-link]', s).forEach(b => b.onclick = () => { link = b.dataset.link; picked = true; upd(); });
+    nameIn.addEventListener('input', () => { guessLink(); upd(); });
     const upd = () => {
       $$('[data-t]', s).forEach(b => b.classList.toggle('on', b.dataset.t === type));
       $('[data-card]', s).hidden = type !== 'card'; $('[data-instant]', s).hidden = type === 'card';
       $$('[data-pre]', s).forEach(b => b.classList.toggle('on', Number(b.dataset.pre) === preset));
       $('[data-custom]', s).hidden = preset !== -1;
+      $$('[data-link]', s).forEach(b => b.classList.toggle('on', b.dataset.link === link));
     };
     $$('[data-t]', s).forEach(b => b.onclick = () => { type = b.dataset.t; upd(); });
     $$('[data-pre]', s).forEach(b => b.onclick = () => {
@@ -1446,6 +1754,7 @@ function openPm(id) {
     $('[data-save]', s).onclick = () => {
       const name = $('[data-name]', s).value.trim().slice(0, 16);
       if (!name) { shake($('[data-name]', s)); return; }
+      guessLink();
       const v = { name, type };
       if (acc !== 'main') v.acc = acc;
       if (type === 'card') {
@@ -1458,10 +1767,12 @@ function openPm(id) {
       Object.assign(it, v);
       if (!p) D.pm.push(it);
       if (type === 'card') {
-        // 引き落としの予定とつなぐ（同じ名前の予定がもうあれば、それを使う）
-        let r = cardRec(it) || D.rec.find(r => r.kind === 'expense' && !r.pm && r.name === name);
+        // 引き落としの予定とつなぐ（選んだ予定、なければ新しく作る）
+        const old = cardRec(it);
+        let r = link !== 'new' ? D.rec.find(x => x.id === link) : null;
+        if (old && old !== r) delete old.pm;
         if (!r) { r = { id: uid(), name, kind: 'expense', day: v.pay, amount: 0, start: today(), skip: [], icon: 'bank' }; D.rec.push(r); }
-        Object.assign(r, { pm: it.id, name, day: v.pay, amount: 0 }); delete r.freq; delete r.month;
+        Object.assign(r, { pm: it.id, day: v.pay, amount: 0 }); delete r.freq; delete r.month;
       } else {
         const r = cardRec(it); if (r) delete r.pm;
       }
@@ -1540,7 +1851,10 @@ function openQuickSet() {
 /* ---------- 使い方ガイド ---------- */
 const GUIDE = [
   ['', 'ZUBOってどんなアプリ？', `<p>「いま使えるお金」がひと目でわかる、ズボラ向けの残高管理アプリです。細かい家計簿はつけなくてOK。<b>使ったらタップ</b>、それだけです。</p>`],
-  ['', '支出の入れ方（いちばん大事）', `<p>ホームの「いくら使った？」で金額を入れて、「なにに使った？」の「ごはん」「コンビニ」などをタップすると登録完了。選ぶのが面倒なら「そのまま登録」でOK。</p>
+  ['', '今月あと使えるお金', `<p>ホームのいちばん上の数字です。タップすると決め方を選べます。</p><ul><li><b>自動で計算</b>：今月の給料 − 毎月の支払い（家賃・カードなど）− 貯金したい額（貯金目標から）− 今月もう使ったお金</li><li><b>自分で決める</b>：「1か月 8万円まで」のように決めて、使った分を引いていきます。その月だけ金額を変えることもできます</li></ul>`],
+  ['', 'ざっくり・しっかり管理', `<p>設定のいちばん上で切り替えます。<b>ざっくり</b>は入力と「今月あと使えるお金」だけのシンプルな画面。<b>しっかり管理</b>にすると、カード・PayPay・口座ごとの残高・予算・毎年の支払いが使えます。切り替えても記録は消えません。</p>`],
+  ['', '他の家計簿アプリから取り込む', `<p>設定 →「他の家計簿アプリから取り込む」で、マネーフォワード ME・Zaim などのCSVファイルを選びます。マネーフォワード ME と Zaim は自動で読み込み、それ以外は「どの列が日付・金額か」を選ぶだけ（次からは自動）。取り込んでも今の残高は変わらず、過去の記録だけ増えます。同じものは二重に取り込みません。</p>`],
+  ['', '支出の入れ方（いちばん大事）', `<p>ホームの「いくら使った？」で金額を入れて、「なにに使った？」の「ごはん」「コンビニ」などをタップすると登録完了。選ぶのが面倒なら「カテゴリなしで登録」でOK。</p>
     <ul><li>1,000円 → よく使う金額の <b>1,000</b> をタップ</li><li>1,280円 → テンキーで <b>1・2・8・0</b></li><li>12,000円 → <b>1・2・00・0</b></li></ul>
     <p>押しまちがえたら <b>⌫</b> で1文字消せます（右上の×で全部消せます）。登録したあとでも、下に出る「取り消す」で戻せます。</p>`],
   ['', 'よく使う金額・だいたいでOK', `<ul><li>よく使う金額を押したあとに数字を押すと、<b>打ち直し</b>になります。1,500 を押してから ⌫⌫ → 8・0 で 1,580 のように直すこともできます</li><li>ボタンの金額は 設定 →「よく使う金額」で自分用に変えられます</li><li>だいたいでOK。1,320円を「1,500」で入れても、ズレは「残高を合わせる」でまとめて直せます</li></ul>`],
@@ -1579,7 +1893,7 @@ function openRec(id) {
   openSheet(`<h3>${r ? '予定を編集' : '予定を追加'}</h3>
     <p class="lead">給料・カードの引き落とし・家賃などの毎月の予定と、自動車税・更新料などの毎年の支払い</p>
     <div class="seg kind-seg"><button data-k="expense">引き落とし（支出）</button><button data-k="income">給料（収入）</button></div>
-    <div class="seg freq-seg"><button data-f="month">毎月</button><button data-f="year">毎年</button></div>
+    <div class="seg freq-seg" ${isPro() || r?.freq === 'year' ? '' : 'hidden'}><button data-f="month">毎月</button><button data-f="year">毎年</button></div>
     <div class="label">名前</div>
     <input class="field" maxlength="20" placeholder="例：楽天カード" value="${esc(r?.name || '')}" data-name>
     <div class="inline-fields">
@@ -1892,11 +2206,42 @@ function showWelcome() {
       setProfiles([...getProfiles(), p]);
       store.set(`data:${p.id}`, newData(base));
       openProfile(p);
-      openFixed(true);
+      showOnboard();
     };
     if (pinBtn.classList.contains('on')) setPinFlow(pin => create(pin));
     else create(null);
   };
+}
+
+// はじめる → ②使い方 → ③前のデータ → ④毎月かかるお金
+function showOnboard() {
+  let mode = 'easy', from = 'skip';
+  const dots = n => `<div class="step">${n} / 4</div><div class="dots">${[1, 2, 3, 4].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</div>`;
+  const opt = (attr, v, cur, title, sub, tags = []) => `<button class="opt ${v === cur ? 'on' : ''}" ${attr}="${v}"><span class="ck"></span><div><b>${title}</b><small>${sub}</small>${tags.length ? `<div class="tags">${tags.map(t => `<span>${t}</span>`).join('')}</div>` : ''}</div></button>`;
+  const step2 = () => {
+    tabbar.hidden = true; closeSheet();
+    app.innerHTML = `<div class="ob">${dots(2)}<h2 class="qh">どんなふうに使う？</h2><p class="qs">あとから設定でいつでも変えられます。</p>
+      ${opt('data-ob-m', 'easy', mode, 'ざっくり', '使った金額を入れて、今月あといくら使えるかを見るだけ。', ['いちばんかんたん', 'ズボラ向け'])}
+      ${opt('data-ob-m', 'pro', mode, 'しっかり管理', 'カードの引き落とし、PayPay、口座ごとの残高、予算まで管理したい人向け。', ['カード', 'PayPay', '口座', '予算'])}
+      <div class="stack"><button class="btn btn-primary" data-ob-next>次へ</button></div></div>`;
+    window.scrollTo(0, 0);
+    $$('[data-ob-m]', app).forEach(b => b.onclick = () => { mode = b.dataset.obM; step2(); });
+    $('[data-ob-next]', app).onclick = () => { D.mode = mode; save(); step3(); };
+  };
+  const step3 = () => {
+    app.innerHTML = `<div class="ob">${dots(3)}<h2 class="qh">前に使っていた家計簿アプリはある？</h2><p class="qs">マネーフォワード ME・Zaim などから書き出したCSVファイルがあれば、今までの記録をそのまま持ってこれます。</p>
+      ${opt('data-ob-c', 'csv', from, 'CSVを取り込む', 'ファイルを選ぶ → 中身を確認 → 取り込み。')}
+      ${opt('data-ob-c', 'skip', from, 'なし・あとで', 'あとから設定 →「他の家計簿アプリから取り込む」でもできます。')}
+      <div class="stack"><button class="btn btn-primary" data-ob-next>次へ</button></div></div>`;
+    window.scrollTo(0, 0);
+    $$('[data-ob-c]', app).forEach(b => b.onclick = () => { from = b.dataset.obC; step3(); });
+    $('[data-ob-next]', app).onclick = () => {
+      render();
+      if (from === 'csv') openCsv({ after: () => openFixed(true) });
+      else openFixed(true);
+    };
+  };
+  step2();
 }
 
 function showPicker() {

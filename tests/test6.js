@@ -5,7 +5,7 @@ const { chromium, devices } = require('/opt/node-tools/node_modules/playwright')
   p.on('pageerror', e => console.log('ERR', e.message));
   await p.goto('http://localhost:8765/');
   await p.evaluate(() => localStorage.setItem('nokori:hideInstallTip', 'true'));
-  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '100000'); await p.click('[data-start]'); await p.waitForTimeout(400); await p.click('.sheet [data-later]');
+  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '100000'); await p.click('[data-start]'); await p.click('[data-ob-next]'); await p.click('[data-ob-next]'); await p.waitForTimeout(400); await p.click('.sheet [data-later]');
   await p.click('[data-act="pad-quick"][data-v="1000"]'); await p.click('[data-act="pad-plain"]');
   await p.click('#tabbar [data-view="settings"]');
   await p.waitForTimeout(5200);

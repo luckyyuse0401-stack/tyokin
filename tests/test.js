@@ -13,7 +13,7 @@ const S = process.argv[2];
   await p.click('[data-pin]');
   await p.click('[data-start]');
   // set pin 1234 twice
-  for (const k of '12341234') await p.click(`.sheet .pinpad [data-k="${k}"]`); await p.waitForTimeout(400); await p.click('.sheet [data-later]');
+  for (const k of '12341234') await p.click(`.sheet .pinpad [data-k="${k}"]`); await p.waitForTimeout(400); await p.click('[data-ob-next]'); await p.click('[data-ob-next]'); await p.waitForTimeout(300); await p.click('.sheet [data-later]');
   await p.waitForTimeout(400);
   await p.screenshot({ path: S + '/1-home.png', fullPage: false });
   // quick 500 → コンビニ

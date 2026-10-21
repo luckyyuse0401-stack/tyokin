@@ -8,11 +8,11 @@ const ok = (c, m) => { console.log((c ? 'OK  ' : 'NG  ') + m); if (!c) process.e
   const p = await c.newPage(); const E = (f, a) => p.evaluate(f, a);
   p.on('pageerror', e => ok(false, 'pageerror ' + e.message));
   await p.goto('http://localhost:8765/');
-  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '100000'); await p.click('[data-start]'); await p.waitForTimeout(400);
+  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '100000'); await p.click('[data-start]'); await p.click('[data-ob-next]'); await p.click('[data-ob-next]'); await p.waitForTimeout(400);
   await p.click('.sheet [data-later]'); await p.waitForTimeout(200);
+  await p.evaluate(() => { D.mode = 'pro'; save(); render(); });
   await E(() => { showBal = true; render(); });
   ok(!(await p.$('.pad-pm')), '支払い方法がなければボタンは出ない');
-  ok((await p.textContent('.balance .lbl')).includes('の残高'), '今まで通り「残高」');
   // カードとPayPayを登録
   await p.click('#tabbar [data-view="settings"]'); await p.click('[data-act="pm-add"]');
   await p.fill('.sheet [data-name]', '楽天カード'); await p.click('.sheet [data-pre="0"]');
@@ -32,7 +32,7 @@ const ok = (c, m) => { console.log((c ? 'OK  ' : 'NG  ') + m); if (!c) process.e
   ok(after[0] === before[0], 'カードで払っても口座の残高はそのまま');
   ok(after[1] === before[1] - 1280 && after[2] === 1280, '使えるお金はすぐ1,280減る');
   ok((await p.textContent('#toast-root')).includes('楽天カードで'), 'トーストに引き落とし日');
-  ok((await p.textContent('.balance .lbl')).includes('使えるお金') && (await p.textContent('.bal-sub')).includes('−¥1,280'), 'トップが「使えるお金」＋内訳');
+  ok((await p.textContent('.lv-sub')).includes('¥100,000'), 'トップの口座のお金はカードの分まだ減らない');
   await p.screenshot({ path: process.argv[2] + '/home.png' });
   ok(await p.$eval('.pad-pm button.on', e => e.textContent) === '楽天カード', '次も前回の払い方が選ばれている');
   // カテゴリが隠れない

@@ -9,7 +9,7 @@ const ok = (c, m) => { console.log((c ? 'OK  ' : 'NG  ') + m); if (!c) process.e
   p.on('pageerror', e => ok(false, 'pageerror ' + e.message));
   await p.goto('http://localhost:8765/');
   await p.evaluate(() => localStorage.setItem('nokori:hideInstallTip', 'true'));
-  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '100000'); await p.click('[data-start]'); await p.waitForTimeout(400); await p.click('.sheet [data-later]');
+  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '100000'); await p.click('[data-start]'); await p.click('[data-ob-next]'); await p.click('[data-ob-next]'); await p.waitForTimeout(400); await p.click('.sheet [data-later]');
   await p.waitForTimeout(600);
   const amt = () => p.evaluate(() => padAmount());
   const key = async ks => { for (const k of ks) await p.click(`[data-act="pad-key"][data-k="${k}"]`); };
@@ -46,7 +46,7 @@ const ok = (c, m) => { console.log((c ? 'OK  ' : 'NG  ') + m); if (!c) process.e
   await p.screenshot({ path: process.argv[2] + '/k0.png' });
   // 設定で変える
   await p.click('#tabbar [data-view="settings"]');
-  await p.click('.menu [data-act="quick-set"]');
+  await p.evaluate(() => { D.mode = 'pro'; save(); render(); }); await p.click('.menu [data-act="quick-set"]');
   const ins = await p.$$('.sheet [data-q]');
   await ins[0].fill('300'); await ins[1].fill('800'); await ins[4].fill('5000');
   await p.screenshot({ path: process.argv[2] + '/k1.png' });

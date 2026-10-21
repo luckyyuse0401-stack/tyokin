@@ -5,7 +5,7 @@ const { chromium, devices } = require('/opt/node-tools/node_modules/playwright')
   const A = await mk();
   await A.goto('http://localhost:8765/');
   await A.fill('[data-name]', '自分'); await A.fill('[data-bal]', '100000'); await A.click('[data-pin]'); await A.click('[data-start]');
-  for (const k of '12341234') await A.click(`.sheet .pinpad [data-k="${k}"]`); await A.waitForTimeout(400); await A.click('.sheet [data-later]');
+  for (const k of '12341234') await A.click(`.sheet .pinpad [data-k="${k}"]`); await A.waitForTimeout(400); await A.click('[data-ob-next]'); await A.click('[data-ob-next]'); await A.waitForTimeout(300); await A.click('.sheet [data-later]');
   await A.waitForTimeout(300);
   await A.evaluate(() => { for (let i=0;i<300;i++) D.tx.push({id:uid(),date:'2026-0'+(4+i%6)+'-1'+(i%9),kind:'expense',amount:300+i,cat:'cafe',memo:'メモ'+i}); save(); render(); });
   const bal = await A.evaluate(() => balance());

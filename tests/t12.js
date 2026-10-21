@@ -8,7 +8,7 @@ const ok = (c, m) => { console.log((c ? 'OK  ' : 'NG  ') + m); if (!c) process.e
   const p = await c.newPage(); const D = f => p.evaluate(f);
   p.on('pageerror', e => ok(false, 'pageerror ' + e.message));
   await p.goto('http://localhost:8765/');
-  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '200000'); await p.click('[data-start]'); await p.waitForTimeout(500);
+  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '200000'); await p.click('[data-start]'); await p.click('[data-ob-next]'); await p.click('[data-ob-next]'); await p.waitForTimeout(500);
   ok(await p.$eval('.sheet h3', e => e.textContent) === '毎月かかるお金は？', 'はじめたあとに「毎月かかるお金」が出る');
   const fr = n => `.sheet .fr[data-f="${n}"]`;
   await p.click(fr(0) + ' [data-tg]'); await p.fill(fr(0) + ' [data-a]', '72,000'); await p.fill(fr(0) + ' [data-d]', '27');
@@ -54,7 +54,7 @@ const ok = (c, m) => { console.log((c ? 'OK  ' : 'NG  ') + m); if (!c) process.e
   await p.screenshot({ path: process.argv[2] + '/st.png' });
   // あとで
   const p2 = await c.newPage(); await p2.goto('http://localhost:8765/'); await p2.evaluate(() => { localStorage.clear(); }); await p2.reload();
-  await p2.fill('[data-name]', 'B'); await p2.click('[data-start]'); await p2.waitForTimeout(400);
+  await p2.fill('[data-name]', 'B'); await p2.click('[data-start]'); await p2.click('[data-ob-next]'); await p2.click('[data-ob-next]'); await p2.waitForTimeout(400);
   await p2.click('.sheet [data-later]'); await p2.waitForTimeout(200);
   ok(!(await p2.$('.sheet')) && await p2.evaluate(() => D.rec.length) === 0, '「あとで」で何も登録せず閉じる');
   await b.close();

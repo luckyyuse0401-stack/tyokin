@@ -806,3 +806,79 @@ select.field { appearance: none; -webkit-appearance: none; background: #fff url(
 .sheet-x .gl { width: 14px; height: 14px; }
 .sheet h3 { padding-right: 40px; }
 .entry-head { padding-right: 40px; }
+
+/* ===== シンプル版（今月あと使えるお金・ざっくり／しっかり） ===== */
+.balance.lv { padding: 12px 16px 10px; }
+.lv .k { display: flex; justify-content: space-between; align-items: center; }
+.lv .lv-t { background: none; border: 0; padding: 0; font-size: 13px; font-weight: 800; color: var(--muted); }
+.lv .v { font-size: 34px; font-weight: 800; line-height: 1.1; margin-top: 2px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.lv .v small { font-size: 13px; color: var(--muted); font-weight: 700; }
+.lv .v.over span { color: var(--red); }
+.lv .v.over small { color: var(--red); }
+.lv-bar { height: 7px; border-radius: 99px; background: var(--card2); margin: 6px 0 6px; overflow: hidden; }
+.lv-bar i { display: block; height: 100%; background: var(--lime-dark); border-radius: 99px; }
+.lv-bar.over i { background: var(--red); }
+.lv-set { display: block; width: 100%; margin: 8px 0; border: 2px dashed var(--card2); background: none; border-radius: 16px; padding: 12px; font-weight: 800; font-size: 14px; color: var(--ink); }
+.lv-sub { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); font-weight: 700; border-top: 1px solid var(--line); padding-top: 8px; }
+.lv-sub b { color: var(--ink); }
+.lv .acc-toggle { margin-top: 0; }
+.pad-mini { display: flex; justify-content: center; gap: 22px; margin-top: 10px; }
+.pad-mini button { background: none; border: 0; padding: 4px; font-size: 13px; font-weight: 800; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+.pad-mini.off button { opacity: .4; }
+.sh-note { font-size: 12px; color: var(--muted); font-weight: 700; margin-left: 4px; }
+.mode-pick, .ty { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.mode-pick button, .ty button { border: 2px solid var(--card2); border-radius: 18px; padding: 12px 10px; background: #fff; text-align: left; color: var(--ink); }
+.mode-pick button b, .ty button b { display: block; font-size: 14px; font-weight: 800; }
+.mode-pick button small, .ty button small { display: block; font-size: 11px; color: var(--muted); font-weight: 700; margin-top: 3px; line-height: 1.5; }
+.mode-pick button.on, .ty button.on { border-color: var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.ex { background: var(--bg); border-radius: 14px; padding: 12px; font-size: 13px; line-height: 1.7; margin-top: 12px; }
+.calc { background: var(--bg); border-radius: 14px; padding: 8px 12px; margin-top: 12px; }
+.calc div { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 700; padding: 4px 0; color: var(--muted); }
+.calc div b { color: var(--ink); font-weight: 800; }
+.calc div.t { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 8px; color: var(--ink); font-weight: 800; }
+[data-fixed][hidden] { display: none; }
+/* はじめる流れ */
+.ob { padding: calc(var(--safe-t) + 30px) 20px 40px; max-width: 560px; margin: 0 auto; }
+.ob .step { font-size: 12px; font-weight: 800; color: var(--muted); letter-spacing: .06em; }
+.ob .dots { display: flex; gap: 6px; margin: 6px 0 16px; }
+.ob .dots i { width: 22px; height: 5px; border-radius: 9px; background: var(--card2); }
+.ob .dots i.on { background: var(--ink); }
+.qh { font-size: 24px; font-weight: 800; margin: 0 0 6px; line-height: 1.35; }
+.qs { font-size: 13px; color: var(--muted); margin: 0 0 16px; line-height: 1.6; }
+.opt { display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: left; background: #fff; border: 2px solid var(--card2); border-radius: 22px; padding: 16px; margin-bottom: 10px; color: var(--ink); }
+.opt.on { border-color: var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.opt .ck { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--card2); flex: none; margin-top: 2px; box-sizing: border-box; }
+.opt.on .ck { background: var(--lime); border: 6px solid var(--ink); }
+.opt b { display: block; font-size: 17px; font-weight: 800; }
+.opt small { display: block; font-size: 12.5px; color: var(--muted); font-weight: 700; line-height: 1.6; margin-top: 4px; }
+.opt .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.opt .tags span { background: var(--card2); border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 800; color: var(--muted); }
+/* 貯金目標（シンプル） */
+.gbig { display: block; width: 100%; background: #fff; border: 0; border-radius: 28px; box-shadow: var(--lift); padding: 20px; text-align: center; color: var(--ink); }
+.gbig .t { font-size: 13px; color: var(--muted); font-weight: 700; }
+.gbig .v { font-size: 34px; font-weight: 800; margin: 4px 0; }
+.gbig .bar { height: 10px; border-radius: 99px; background: var(--card2); margin: 12px 0 6px; overflow: hidden; }
+.gbig .bar i { display: block; height: 100%; background: var(--lime-dark); }
+.gbig .s { font-size: 12px; color: var(--muted); font-weight: 700; display: flex; justify-content: space-between; }
+.gbig .st { display: inline-block; border-radius: 999px; padding: 8px 16px; font-weight: 800; font-size: 14px; margin-top: 10px; background: var(--card2); line-height: 1.5; }
+.gbig .st.ok { background: color-mix(in srgb, var(--lime) 35%, #fff); }
+.gbig .st b { font-weight: 800; }
+.gmore { display: block; width: 100%; margin-top: 12px; border: 2px dashed var(--card2); background: none; border-radius: 18px; padding: 12px; font-weight: 800; font-size: 14px; color: var(--muted); }
+/* CSV */
+.okbadge { display: inline-flex; background: color-mix(in srgb, var(--lime) 30%, #fff); border-radius: 999px; padding: 6px 12px; font-weight: 800; font-size: 13px; margin-top: 4px; }
+.csv-sum { background: var(--bg); border-radius: 16px; padding: 10px 14px; margin: 10px 0; }
+.csv-sum .r { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 800; padding: 4px 0; }
+.csv-sum .r span { color: var(--muted); font-weight: 700; white-space: nowrap; }
+.pv-wrap { overflow-x: auto; margin: 6px 0 4px; }
+.pv { border-collapse: collapse; font-size: 11.5px; }
+.pv th { background: var(--card2); padding: 6px 6px; font-weight: 800; text-align: left; white-space: nowrap; }
+.pv td { padding: 6px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.mp { display: grid; grid-template-columns: 90px 1fr; gap: 6px 10px; align-items: center; margin-top: 10px; font-size: 13px; font-weight: 800; }
+.mp .field { padding: 8px 10px; font-size: 14px; }
+.map .mr { display: grid; grid-template-columns: 1fr 130px; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 800; }
+.map .mr small { display: block; font-size: 11px; color: var(--muted); font-weight: 700; }
+.map .field { padding: 8px 10px; font-size: 14px; }
+.pro-offer { display: flex; gap: 10px; align-items: flex-start; background: var(--bg); border-radius: 14px; padding: 12px; margin-top: 12px; }
+.pro-offer input { width: 20px; height: 20px; margin-top: 2px; flex: none; }
+.pro-offer b { display: block; font-size: 14px; }
+.pro-offer small { display: block; font-size: 12px; color: var(--muted); line-height: 1.5; margin-top: 2px; }

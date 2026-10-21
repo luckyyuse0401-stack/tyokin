@@ -1,5 +1,5 @@
 // オフラインでも開けるように、アプリ本体をキャッシュする（まずネット、だめならキャッシュ）
-const CACHE = 'zubo-v23';
+const CACHE = 'zubo-v24';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {

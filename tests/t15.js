@@ -8,8 +8,9 @@ const ok = (c, m) => { console.log((c ? 'OK  ' : 'NG  ') + m); if (!c) process.e
   const p = await c.newPage(); const E = (f, a) => p.evaluate(f, a);
   p.on('pageerror', e => ok(false, 'pageerror ' + e.message));
   await p.goto('http://localhost:8765/');
-  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '100000'); await p.click('[data-start]'); await p.waitForTimeout(400);
+  await p.fill('[data-name]', '自分'); await p.fill('[data-bal]', '100000'); await p.click('[data-start]'); await p.click('[data-ob-next]'); await p.click('[data-ob-next]'); await p.waitForTimeout(400);
   await p.click('.sheet [data-later]'); await p.waitForTimeout(200);
+  await p.evaluate(() => { D.mode = 'pro'; save(); render(); });
   await E(() => { showBal = true; render(); });
   ok(!(await p.$('.acc-toggle')), '口座が1つなら▼は出ない');
   // 口座を追加
@@ -41,7 +42,7 @@ const ok = (c, m) => { console.log((c ? 'OK  ' : 'NG  ') + m); if (!c) process.e
   ok(await E(rk => accBalance(rk), rk) === 46500 && await E(() => accBalance('main')) === 99000, 'カードの引き落としは楽天銀行から');
   await E(() => { D.tx = D.tx.filter(x => x.id !== 'w'); render(); });
   // ホームの▼
-  ok((await p.textContent('.acc-toggle')).includes('口座ごとに見る'), 'ホームに▼');
+  ok((await p.textContent('.acc-toggle')).includes('口座ごと'), 'ホームに▼');
   await p.click('[data-act="acc-open"]');
   ok(await p.$$eval('.acc-list .r', e => e.map(x => x.textContent.replace(/\s/g, '')).join('|')) === '三菱UFJ¥99,000|楽天銀行¥49,500', '開くと口座ごと');
   await p.screenshot({ path: process.argv[2] + '/home.png' });
